@@ -160,9 +160,9 @@ type HomeProps = {
 export function Home({ setActiveTab }: HomeProps) {
   return (
     <div className="space-y-6 animate-fade-in">
-      <Card title="My First Mini App">
+      <Card title="Welcome to Gambly">
         <p className="text-[var(--app-foreground-muted)] mb-4">
-          This is a minimalistic Mini App built with OnchainKit components.
+          A decentralized gambling application built with OnchainKit. Test your luck by transferring ERC20 tokens!
         </p>
         <Button
           onClick={() => setActiveTab("features")}
@@ -173,8 +173,6 @@ export function Home({ setActiveTab }: HomeProps) {
       </Card>
 
       <TodoList />
-
-      <TransactionCard />
     </div>
   );
 }

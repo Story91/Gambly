@@ -23,6 +23,7 @@ import { Button } from "./components/DemoComponents";
 import { Icon } from "./components/DemoComponents";
 import { Home } from "./components/DemoComponents";
 import { Features } from "./components/DemoComponents";
+import { GamblingCard } from "./components/GamblingCard";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
@@ -96,7 +97,12 @@ export default function App() {
         </header>
 
         <main className="flex-1">
-          {activeTab === "home" && <Home setActiveTab={setActiveTab} />}
+          {activeTab === "home" && (
+            <div className="space-y-6 animate-fade-in">
+              <GamblingCard />
+              <Home setActiveTab={setActiveTab} />
+            </div>
+          )}
           {activeTab === "features" && <Features setActiveTab={setActiveTab} />}
         </main>
 

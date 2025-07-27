@@ -20,6 +20,7 @@ import Image from "next/image";
 
 import { GamblingCard } from "./components/GamblingCard";
 import { Button, Icon } from "./components/DemoComponents";
+import { Leaderboard } from "./components/Leaderboard";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
@@ -73,30 +74,27 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 font-mono">
-      {/* Main Container */}
       <div className="w-full max-w-md mx-auto bg-white min-h-screen relative">
-        {/* Header */}
         <header className="flex justify-between items-center p-3 bg-white">
           <div className="flex items-center space-x-2">
-            <Image 
-              src="/splash.gif" 
-              alt="Gambly" 
-              width={32}
-              height={32}
-              className="w-8 h-8 rounded-lg object-cover"
+            <Image
+              src="/splash.gif"
+              alt="Gambly"
+              width={50}
+              height={50}
+              className="rounded-lg object-cover"
             />
-            <span className="font-bold text-lg text-gray-800">Gambly</span>
           </div>
           <div className="flex space-x-1">
-            <button 
+            <button
               onClick={() => setShowHowItWorks(true)}
-              className="px-2 py-1 border border-gray-300 rounded text-xs font-medium hover:bg-gray-50 font-mono"
+              className="px-2 py-1 border text-black border-gray-300 rounded text-xs font-medium hover:bg-gray-50 font-mono"
             >
               HOW IT WORKS
             </button>
             <Wallet className="z-10">
               <ConnectWallet className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 font-mono border-2 border-blue-800 shadow-md">
-                {isConnected && address ? formatAddress(address) : 'CONNECT'}
+                {isConnected && address ? formatAddress(address) : "CONNECT"}
               </ConnectWallet>
               <WalletDropdown>
                 <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
@@ -111,35 +109,46 @@ export default function App() {
           </div>
         </header>
 
-        {/* How It Works Modal */}
         {showHowItWorks && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowHowItWorks(false)}>
-            <div className="bg-white rounded-lg p-6 mx-4 max-w-sm" onClick={e => e.stopPropagation()}>
+          <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onClick={() => setShowHowItWorks(false)}
+          >
+            <div
+              className="bg-white rounded-lg p-6 mx-4 max-w-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-bold font-mono">HOW IT WORKS</h2>
-                <button onClick={() => setShowHowItWorks(false)} className="text-gray-500 hover:text-gray-700 font-mono">✕</button>
+                <button
+                  onClick={() => setShowHowItWorks(false)}
+                  className="text-gray-500 hover:text-gray-700 font-mono"
+                >
+                  ✕
+                </button>
               </div>
               <div className="text-center">
                 <p className="text-gray-600 mb-4 font-mono">GAMBLING PAPER</p>
                 <div className="text-sm text-gray-500 font-mono">
-                  Connect your wallet, set amount, and gamble to win $SLOT tokens!
+                  Connect your wallet, set amount, and gamble to win $SLOT
+                  tokens!
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Main Content */}
-        <main className="px-4">
+        <main className="px-2">
           <GamblingCard />
+          <Leaderboard />
         </main>
 
-        {/* Save Frame Button */}
         {saveFrameButton && (
-          <div className="fixed bottom-4 right-4">
-            {saveFrameButton}
-          </div>
+          <div className="fixed bottom-4 right-4">{saveFrameButton}</div>
         )}
+        <footer className="text-center text-xs text-black py-10">
+          <p>Gambly</p>
+        </footer>
       </div>
     </div>
   );

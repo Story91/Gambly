@@ -32,7 +32,7 @@ import blockies from "ethereum-blockies";
 function UserAvatar({ address }: { address: string }) {
   const [avatarSrc, setAvatarSrc] = useState<string>("");
   const [avatarError, setAvatarError] = useState(false);
-  
+
   // Try to get ENS avatar
   const { data: ensAvatar } = useEnsAvatar({
     name: address as `0x${string}`,
@@ -67,9 +67,9 @@ function UserAvatar({ address }: { address: string }) {
           scale: 4,
         });
         setAvatarSrc(canvas.toDataURL());
-             } catch {
-         setAvatarSrc("/splash.gif");
-       }
+      } catch {
+        setAvatarSrc("/splash.gif");
+      }
     } else {
       setAvatarSrc("/splash.gif");
     }
@@ -78,9 +78,9 @@ function UserAvatar({ address }: { address: string }) {
   return (
     <div className="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center overflow-hidden">
       {avatarSrc ? (
-        <Image 
-          src={avatarSrc} 
-          alt="Avatar" 
+        <Image
+          src={avatarSrc}
+          alt="Avatar"
           width={40}
           height={40}
           className="w-full h-full rounded-full object-cover"
@@ -117,7 +117,7 @@ export function GamblingCard() {
   const { data: tokenBalance, refetch: refetchBalance } = useReadContract({
     address: CONTRACTS.ERC20_ADDRESS as `0x${string}`,
     abi: ERC20_ABI,
-    functionName: 'balanceOf',
+    functionName: "balanceOf",
     args: address ? [address] : undefined,
   });
 
@@ -130,9 +130,9 @@ export function GamblingCard() {
       if (numBalance === 0) return "0";
       if (numBalance < 0.01) return "<0.01";
       return numBalance.toLocaleString(undefined, { maximumFractionDigits: 2 });
-         } catch {
-       return "$$$";
-     }
+    } catch {
+      return "$$$";
+    }
   }, [tokenBalance]);
 
   // ERC20 transfer transaction call
@@ -262,11 +262,13 @@ export function GamblingCard() {
       {/* Welcome Bonus */}
       {!claimedBonus && (
         <div className="bg-blue-600 text-white p-4 rounded-lg">
-          <p className="text-sm mb-2">Oh, it&apos;s your first time, we have a gift.</p>
+          <p className="text-sm mb-2">
+            Oh, it&apos;s your first time, we have a gift.
+          </p>
           <p className="text-sm mb-3">Just, claim and thank us later :)</p>
           <div className="flex justify-between items-center">
             <span className="text-2xl font-bold">1000 $SLOT</span>
-            <button 
+            <button
               onClick={() => setClaimedBonus(true)}
               className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium hover:bg-gray-300"
             >
@@ -287,7 +289,9 @@ export function GamblingCard() {
             </div>
           )}
           <div>
-            <p className="font-medium">{address ? formatAddress(address) : "......"}</p>
+            <p className="font-medium">
+              {address ? formatAddress(address) : "......"}
+            </p>
             <p className="text-sm text-gray-600">{formattedBalance} $SLOT</p>
           </div>
         </div>
@@ -310,13 +314,17 @@ export function GamblingCard() {
 
       {/* Machine Balance */}
       <div className="text-center">
-        <div className="text-3xl font-bold text-blue-600 mb-1">............. $SLOT</div>
+        <div className="text-3xl font-bold text-blue-600 mb-1">
+          ............. $SLOT
+        </div>
         <div className="text-sm text-gray-600 mb-4">MACHINE BALANCE</div>
-        
+
         <div className="flex justify-between text-center">
           <div>
             <div className="text-2xl font-bold text-blue-600">0000000</div>
-            <div className="text-xs text-gray-600">CURRENT POOL GAMES PLAYES COUNT</div>
+            <div className="text-xs text-gray-600">
+              CURRENT POOL GAMES PLAYES COUNT
+            </div>
           </div>
           <div>
             <div className="text-2xl font-bold text-blue-600">1/1000</div>
@@ -386,30 +394,6 @@ export function GamblingCard() {
         <span className="text-sm text-gray-500">WEI</span>
       </div>
 
-      {/* Leaderboard */}
-      <div>
-        <h3 className="font-bold text-lg mb-3">LEADERBOARD</h3>
-        <div className="space-y-2">
-          <div className="flex justify-between text-sm font-medium border-b pb-2">
-            <span>#</span>
-            <span>address</span>
-            <span>total won ($SLOT)</span>
-            <span>spins/win ratio</span>
-          </div>
-          {[...Array(7)].map((_, i) => (
-            <div key={i} className="flex justify-between text-sm p-2 rounded">
-              <span className="w-6 h-6 flex items-center justify-center rounded text-white bg-blue-500">
-                {i + 1}
-              </span>
-              <span className="text-xs">0x...</span>
-              <span>$$$</span>
-              <span>0/0</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Last Result */}
       {lastResult && (
         <div
           className={`p-3 rounded-lg ${
@@ -433,7 +417,6 @@ export function GamblingCard() {
         </div>
       )}
 
-      {/* Win Difficulty (Hidden/Debug) */}
       <div className="hidden">
         <div className="flex items-center justify-between p-3 bg-gray-100 rounded-lg">
           <span className="text-sm font-medium">Win Difficulty:</span>

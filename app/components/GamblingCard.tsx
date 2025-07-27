@@ -119,12 +119,13 @@ export function GamblingCard() {
   });
 
   // Read jackpot pool balance from gambling contract
-  const { data: jackpotBalance, refetch: refetchJackpotBalance } = useReadContract({
-    address: CONTRACTS.ERC20_ADDRESS as `0x${string}`,
-    abi: ERC20_ABI,
-    functionName: "balanceOf",
-    args: [CONTRACTS.GAMBLING_ADDRESS],
-  });
+  const { data: jackpotBalance, refetch: refetchJackpotBalance } =
+    useReadContract({
+      address: CONTRACTS.ERC20_ADDRESS as `0x${string}`,
+      abi: ERC20_ABI,
+      functionName: "balanceOf",
+      args: [CONTRACTS.GAMBLING_ADDRESS],
+    });
 
   // Format token balance for display
   const formattedBalance = useMemo(() => {
@@ -193,9 +194,9 @@ export function GamblingCard() {
       const transactionHash = response.transactionReceipts[0].transactionHash;
       console.log(`ERC20 Transfer successful: ${transactionHash}`);
 
-             // Refetch balance after transfer
-       refetchBalance();
-       refetchJackpotBalance();
+      // Refetch balance after transfer
+      refetchBalance();
+      refetchJackpotBalance();
 
       // Get win difficulty if not loaded
       let currentWinDifficulty = winDifficulty;
@@ -228,9 +229,9 @@ export function GamblingCard() {
             claimed: true,
           });
 
-                     // Refetch balance after claiming prize
-           refetchBalance();
-           refetchJackpotBalance();
+          // Refetch balance after claiming prize
+          refetchBalance();
+          refetchJackpotBalance();
 
           await sendNotification({
             title: "🎉 Congratulations! You Won!",
@@ -256,9 +257,15 @@ export function GamblingCard() {
 
       // Reset transaction component to show gamble button again
       setTransactionKey((prev) => prev + 1);
-         },
-     [winDifficulty, address, sendNotification, refetchBalance, refetchJackpotBalance],
-   );
+    },
+    [
+      winDifficulty,
+      address,
+      sendNotification,
+      refetchBalance,
+      refetchJackpotBalance,
+    ],
+  );
 
   // Handle transaction error
   const handleTransferError = useCallback(
@@ -280,47 +287,50 @@ export function GamblingCard() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-4 bg-gray-100 p-4 rounded-lg">
-        {/* User Profile */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            {address ? (
-              <UserAvatar address={address} />
-            ) : (
-              <div className="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">0x</span>
+      {address && (
+        <div className="flex flex-col gap-4 bg-gray-100 p-4 rounded-lg">
+          {/* User Profile */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              {address ? (
+                <UserAvatar address={address} />
+              ) : (
+                <div className="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold">0x</span>
+                </div>
+              )}
+              <div>
+                <p className="font-medium text-black">
+                  {address ? formatAddress(address) : "......"}
+                </p>
+                <p className="text-sm text-gray-600">
+                  {formattedBalance} $SLOT
+                </p>
               </div>
-            )}
-            <div>
-              <p className="font-medium text-black">
-                {address ? formatAddress(address) : "......"}
-              </p>
-              <p className="text-sm text-gray-600">{formattedBalance} $SLOT</p>
+            </div>
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+              GET MORE
+            </button>
+          </div>
+
+          {/* Gambling King Status */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-2xl">👑</span>
+              <span className="text-orange-500 font-bold">GAMBLING KING</span>
+            </div>
+            <div className="flex space-x-4 text-sm">
+              <span className="text-black">0 SPINS</span>
+              <span className="text-black">0 WINS</span>
             </div>
           </div>
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-            GET MORE
-          </button>
         </div>
-
-        {/* Gambling King Status */}
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <span className="text-2xl">👑</span>
-            <span className="text-orange-500 font-bold">GAMBLING KING</span>
-          </div>
-          <div className="flex space-x-4 text-sm">
-            <span className="text-black">0 SPINS</span>
-            <span className="text-black">0 WINS</span>
-          </div>
+      )}
+      {/* Jackpot Pool */}
+      <div className="text-center">
+        <div className="text-3xl font-bold text-blue-600 mb-1">
+          {formattedJackpotBalance} $SLOT
         </div>
-      </div>
-
-             {/* Jackpot Pool */}
-       <div className="text-center">
-         <div className="text-3xl font-bold text-blue-600 mb-1">
-           {formattedJackpotBalance} $SLOT
-         </div>
         <div className="text-sm text-gray-600 mb-4 flex items-center justify-center space-x-2">
           <span className="animate-bounce">💰</span>
           <span className="animate-pulse">JACKPOT POOL</span>

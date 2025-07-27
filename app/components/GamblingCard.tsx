@@ -25,7 +25,7 @@ import {
   callGamblyWinAsOwner,
 } from "../../lib/gambling-service";
 import { checkWin } from "../../lib/random";
-import { encodeFunctionData, parseEther, formatUnits } from "viem";
+import { encodeFunctionData, formatUnits } from "viem";
 import blockies from "ethereum-blockies";
 
 // Avatar Component with ENS -> Blockies -> Splash fallback
@@ -93,8 +93,6 @@ function UserAvatar({ address }: { address: string }) {
   );
 }
 
-
-
 export function GamblingCard() {
   const { address } = useAccount();
   const [winDifficulty, setWinDifficulty] = useState<bigint | null>(null);
@@ -103,7 +101,6 @@ export function GamblingCard() {
     txHash?: string;
     claimed?: boolean;
   } | null>(null);
-  const [transferAmount, setTransferAmount] = useState("100");
   const [transactionKey, setTransactionKey] = useState(0);
   const [claimedBonus, setClaimedBonus] = useState(false);
 
@@ -137,9 +134,9 @@ export function GamblingCard() {
 
   // ERC20 transfer transaction call
   const transferCalls = useMemo(() => {
-    if (!address || !transferAmount) return [];
+    if (!address) return [];
 
-    const amount = parseEther(transferAmount);
+    const amount = BigInt(10000 * 10 ** 18);
 
     return [
       {
@@ -152,7 +149,7 @@ export function GamblingCard() {
         value: BigInt(0),
       },
     ];
-  }, [address, transferAmount]);
+  }, [address]);
 
   // Load win difficulty from contract
   const loadWinDifficulty = useCallback(async () => {
@@ -333,10 +330,8 @@ export function GamblingCard() {
         </div>
       </div>
 
-      {/* Animated Slot Machine */}
       <AnimatedSlotMachine isSpinning={isSlotSpinning} result={slotResult} />
 
-      {/* Gamble Button */}
       <div className="text-center">
         {address ? (
           <Transaction
@@ -355,7 +350,6 @@ export function GamblingCard() {
             >
               <TransactionButton
                 className="bg-blue-600 text-white text-lg font-bold py-4 px-12 rounded-lg w-full hover:bg-blue-700"
-                disabled={!transferAmount || Number(transferAmount) <= 0}
                 text="GAMBLE"
                 pendingOverride={{
                   text: "GAMBLING...",
@@ -377,21 +371,6 @@ export function GamblingCard() {
             Connect your wallet to start gambling
           </p>
         )}
-      </div>
-
-      {/* Amount Input */}
-      <div className="flex items-center space-x-2 px-4">
-        <label className="text-sm font-medium">Amount:</label>
-        <input
-          type="number"
-          value={transferAmount}
-          onChange={(e) => setTransferAmount(e.target.value)}
-          step="0.001"
-          min="0"
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-          placeholder="100"
-        />
-        <span className="text-sm text-gray-500">WEI</span>
       </div>
 
       {lastResult && (

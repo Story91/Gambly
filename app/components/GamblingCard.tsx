@@ -118,6 +118,14 @@ export function GamblingCard() {
     args: address ? [address] : undefined,
   });
 
+  // Read jackpot pool balance from gambling contract
+  const { data: jackpotBalance, refetch: refetchJackpotBalance } = useReadContract({
+    address: CONTRACTS.ERC20_ADDRESS as `0x${string}`,
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    args: [CONTRACTS.GAMBLING_ADDRESS],
+  });
+
   // Format token balance for display
   const formattedBalance = useMemo(() => {
     if (!tokenBalance) return "$$$";
@@ -131,6 +139,19 @@ export function GamblingCard() {
       return "$$$";
     }
   }, [tokenBalance]);
+
+  // Format jackpot pool balance for display
+  const formattedJackpotBalance = useMemo(() => {
+    if (!jackpotBalance) return ".............";
+    try {
+      const balance = formatUnits(jackpotBalance as bigint, 18);
+      const numBalance = parseFloat(balance);
+      if (numBalance === 0) return "0";
+      return numBalance.toLocaleString(undefined, { maximumFractionDigits: 0 });
+    } catch {
+      return ".............";
+    }
+  }, [jackpotBalance]);
 
   // ERC20 transfer transaction call
   const transferCalls = useMemo(() => {
@@ -172,8 +193,9 @@ export function GamblingCard() {
       const transactionHash = response.transactionReceipts[0].transactionHash;
       console.log(`ERC20 Transfer successful: ${transactionHash}`);
 
-      // Refetch balance after transfer
-      refetchBalance();
+             // Refetch balance after transfer
+       refetchBalance();
+       refetchJackpotBalance();
 
       // Get win difficulty if not loaded
       let currentWinDifficulty = winDifficulty;
@@ -206,8 +228,9 @@ export function GamblingCard() {
             claimed: true,
           });
 
-          // Refetch balance after claiming prize
-          refetchBalance();
+                     // Refetch balance after claiming prize
+           refetchBalance();
+           refetchJackpotBalance();
 
           await sendNotification({
             title: "🎉 Congratulations! You Won!",
@@ -233,9 +256,9 @@ export function GamblingCard() {
 
       // Reset transaction component to show gamble button again
       setTransactionKey((prev) => prev + 1);
-    },
-    [winDifficulty, address, sendNotification, refetchBalance],
-  );
+         },
+     [winDifficulty, address, sendNotification, refetchBalance, refetchJackpotBalance],
+   );
 
   // Handle transaction error
   const handleTransferError = useCallback(
@@ -292,11 +315,12 @@ export function GamblingCard() {
           </div>
         </div>
       </div>
-      {/* Jackpot Pool */}
-      <div className="text-center">
-        <div className="text-3xl font-bold text-blue-600 mb-1">
-          ............. $SLOT
-        </div>
+
+             {/* Jackpot Pool */}
+       <div className="text-center">
+         <div className="text-3xl font-bold text-blue-600 mb-1">
+           {formattedJackpotBalance} $SLOT
+         </div>
         <div className="text-sm text-gray-600 mb-4 flex items-center justify-center space-x-2">
           <span className="animate-bounce">💰</span>
           <span className="animate-pulse">JACKPOT POOL</span>

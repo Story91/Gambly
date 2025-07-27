@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useAccount, useReadContract, useEnsAvatar, useEnsName } from "wagmi";
-import Image from "next/image";
+import { useAccount, useReadContract } from "wagmi";
 import {
   Transaction,
   TransactionButton,
@@ -27,80 +26,13 @@ import {
 import { checkWin } from "../../lib/random";
 import { encodeFunctionData, formatUnits } from "viem";
 import { base } from "viem/chains";
-import blockies from "ethereum-blockies";
 
-// Avatar Component with ENS -> Blockies -> Splash fallback
-function UserAvatar({ address }: { address: string }) {
-  const [avatarSrc, setAvatarSrc] = useState<string>("");
-  const [avatarError, setAvatarError] = useState(false);
 
-  // Try to get ENS avatar
-  const { data: ensAvatar } = useEnsAvatar({
-    name: address as `0x${string}`,
-  });
-
-  useEffect(() => {
-    if (ensAvatar && !avatarError) {
-      setAvatarSrc(ensAvatar);
-    } else if (address && !ensAvatar) {
-      // Generate blockies identicon
-      try {
-        const canvas = blockies.create({
-          seed: address.toLowerCase(),
-          size: 10,
-          scale: 4,
-        });
-        setAvatarSrc(canvas.toDataURL());
-      } catch (err) {
-        console.error("Blockies error:", err);
-        setAvatarSrc("/splash.gif"); // Fallback to splash.gif
-      }
-    }
-  }, [address, ensAvatar, avatarError]);
-
-  const handleAvatarError = () => {
-    setAvatarError(true);
-    if (address) {
-      try {
-        const canvas = blockies.create({
-          seed: address.toLowerCase(),
-          size: 10,
-          scale: 4,
-        });
-        setAvatarSrc(canvas.toDataURL());
-      } catch {
-        setAvatarSrc("/splash.gif");
-      }
-    } else {
-      setAvatarSrc("/splash.gif");
-    }
-  };
-
-  return (
-    <div className="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center overflow-hidden">
-      {avatarSrc ? (
-        <Image
-          src={avatarSrc}
-          alt="Avatar"
-          width={40}
-          height={40}
-          className="w-full h-full rounded-full object-cover"
-          onError={handleAvatarError}
-        />
-      ) : (
-        <span className="text-white font-bold text-xs">0x</span>
-      )}
-    </div>
-  );
-}
 
 export function GamblingCard() {
   const { address } = useAccount();
 
-  // Try to get ENS name for the connected address
-  const { data: ensName } = useEnsName({
-    address: address as `0x${string}`,
-  });
+
   const [winDifficulty, setWinDifficulty] = useState<bigint | null>(null);
   const [lastResult, setLastResult] = useState<{
     won: boolean;
@@ -436,10 +368,7 @@ export function GamblingCard() {
   );
 
   const formatDisplayName = (addr: string) => {
-    // Use ENS name if available, otherwise show shortened address
-    if (ensName && addr === address) {
-      return ensName;
-    }
+    // Show shortened address
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 

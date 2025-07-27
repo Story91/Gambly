@@ -14,25 +14,34 @@ function withValidProperties(
 export async function GET() {
   const URL = process.env.NEXT_PUBLIC_URL;
 
+  // Parse comma-separated environment variables into arrays
+  const tags = process.env.NEXT_PUBLIC_APP_TAGS 
+    ? process.env.NEXT_PUBLIC_APP_TAGS.split(',').map(tag => tag.trim())
+    : [];
+  
+  const screenshotUrls = process.env.NEXT_PUBLIC_APP_SCREENSHOTS
+    ? process.env.NEXT_PUBLIC_APP_SCREENSHOTS.split(',').map(url => url.trim())
+    : [];
+
   return Response.json({
     accountAssociation: {
       header: process.env.FARCASTER_HEADER,
       payload: process.env.FARCASTER_PAYLOAD,
       signature: process.env.FARCASTER_SIGNATURE,
     },
-    frame: withValidProperties({
+    miniapp: withValidProperties({
       version: "1",
       name: process.env.NEXT_PUBLIC_ONCHAINKIT_PROJECT_NAME,
       subtitle: process.env.NEXT_PUBLIC_APP_SUBTITLE,
       description: process.env.NEXT_PUBLIC_APP_DESCRIPTION,
-      screenshotUrls: process.env.NEXT_PUBLIC_APP_SCREENSHOTS,
+      screenshotUrls,
       iconUrl: process.env.NEXT_PUBLIC_APP_ICON,
       splashImageUrl: process.env.NEXT_PUBLIC_APP_SPLASH_IMAGE,
       splashBackgroundColor: process.env.NEXT_PUBLIC_SPLASH_BACKGROUND_COLOR,
       homeUrl: URL,
       webhookUrl: `${URL}/api/webhook`,
       primaryCategory: process.env.NEXT_PUBLIC_APP_PRIMARY_CATEGORY,
-      tags: process.env.NEXT_PUBLIC_APP_TAGS,
+      tags,
       heroImageUrl: process.env.NEXT_PUBLIC_APP_HERO_IMAGE,
       tagline: process.env.NEXT_PUBLIC_APP_TAGLINE,
       ogTitle: process.env.NEXT_PUBLIC_APP_OG_TITLE,

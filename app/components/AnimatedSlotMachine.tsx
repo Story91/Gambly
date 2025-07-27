@@ -11,6 +11,15 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const [displayText, setDisplayText] = useState('BASED');
+  const [ledAnimation, setLedAnimation] = useState(false);
+  
+  // LED animations
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLedAnimation(prev => !prev);
+    }, 800);
+    return () => clearInterval(interval);
+  }, []);
   
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -200,25 +209,104 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
   }, [result]);
 
   return (
-    <div className="w-full max-w-md mx-auto"> {/* Zwiększone z max-w-sm na max-w-md */}
-      <div className="relative rounded-lg border border-gray-200 overflow-hidden" style={{ height: '200px', width: '100%' }}> {/* Zwiększone z 156px na 200px */}
-        <canvas
-          ref={canvasRef}
-          className="w-full h-full"
-          style={{ 
-            width: '100%', 
-            height: '100%',
-            display: 'block',
-            backgroundColor: '#111'
-          }}
-        />
-        {/* Decorative frame */}
-        <div className="absolute inset-0 border-2 border-blue-300 rounded-lg pointer-events-none"></div>
-        {isSpinning && (
-          <div className="absolute top-1 right-1 text-blue-500 animate-spin">
-            ⭐
+    <div className="w-full max-w-md mx-auto">
+             {/* Casino Frame */}
+       <div className="relative bg-gradient-to-b from-blue-600 via-blue-500 to-blue-700 rounded-xl p-4 shadow-xl border-2 border-blue-400">
+
+        {/* Side Elements */}
+        <div className="flex items-center gap-3">
+          
+          {/* Left Panel */}
+          <div className="w-6 bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg p-2 border border-gray-600">
+            {/* Mini LED Strip */}
+            <div className="space-y-1">
+              {[...Array(6)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`w-1 h-1 rounded-full ${
+                    ledAnimation ? 'bg-red-500' : 'bg-red-800'
+                  } transition-colors duration-500`}
+                  style={{ animationDelay: `${i * 0.1}s` }}
+                ></div>
+              ))}
+            </div>
           </div>
-        )}
+
+          {/* Main Slot Area */}
+          <div className="flex-1 relative">
+                         {/* Decorative Frame */}
+             <div className="absolute -inset-2 bg-gradient-to-r from-blue-400 via-blue-300 to-blue-400 rounded-lg"></div>
+             <div className="absolute -inset-1 bg-gradient-to-r from-gray-800 via-gray-600 to-gray-800 rounded-lg"></div>
+            
+            {/* Payline Indicators */}
+            <div className="absolute left-0 top-1/2 transform -translate-y-1/2 -translate-x-4">
+              <div className={`w-3 h-px bg-red-500 rounded ${isSpinning ? 'animate-pulse' : ''}`}></div>
+            </div>
+            <div className="absolute right-0 top-1/2 transform -translate-y-1/2 translate-x-4">
+              <div className={`w-3 h-px bg-red-500 rounded ${isSpinning ? 'animate-pulse' : ''}`}></div>
+            </div>
+            
+            {/* Slot Canvas */}
+            <div className="relative z-10 rounded-lg overflow-hidden" style={{ height: '200px' }}>
+              <canvas
+                ref={canvasRef}
+                className="w-full h-full"
+                style={{ 
+                  width: '100%', 
+                  height: '100%',
+                  display: 'block',
+                  backgroundColor: '#111'
+                }}
+              />
+              
+              {/* Win Celebration Overlay */}
+              {result === 'win' && (
+                <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
+                  <div className="bg-black bg-opacity-50 rounded-lg px-4 py-2">
+                    <div className="text-yellow-300 font-bold text-xl animate-pulse flex items-center space-x-2">
+                      <span className="animate-bounce">🎉</span>
+                      <span>JACKPOT!</span>
+                      <span className="animate-bounce">🎉</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Panel - Just LED Strip */}
+          <div className="w-6 bg-gradient-to-b from-gray-800 to-gray-900 rounded-lg p-2 border border-gray-600">
+            {/* Mini LED Strip */}
+            <div className="space-y-1">
+              {[...Array(6)].map((_, i) => (
+                <div 
+                  key={i} 
+                  className={`w-1 h-1 rounded-full ${
+                    ledAnimation ? 'bg-blue-500' : 'bg-blue-800'
+                  } transition-colors duration-500`}
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                ></div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        
+
+                 {/* Decorative Bottom LED Strip */}
+         <div className="absolute -bottom-1 left-2 right-2 h-2 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 rounded-b-lg">
+          <div className="flex justify-center items-center h-full space-x-2">
+            {[...Array(8)].map((_, i) => (
+              <div 
+                key={i} 
+                className={`w-px h-px rounded-full ${
+                  i % 2 === 0 ? 'bg-red-600' : 'bg-blue-600'
+                } animate-pulse`}
+                style={{ animationDelay: `${i * 0.2}s` }}
+              ></div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );

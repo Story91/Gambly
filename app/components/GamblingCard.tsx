@@ -16,6 +16,7 @@ import {
   TransactionStatusLabel,
   TransactionStatus,
 } from "@coinbase/onchainkit/transaction";
+import { Avatar, Name } from "@coinbase/onchainkit/identity";
 import { useNotification } from "@coinbase/onchainkit/minikit";
 import { CONTRACTS, ERC20_ABI } from "../../lib/contracts";
 import { AnimatedSlotMachine } from "./AnimatedSlotMachine";
@@ -25,6 +26,7 @@ import {
 } from "../../lib/gambling-service";
 import { checkWin } from "../../lib/random";
 import { encodeFunctionData, formatUnits } from "viem";
+import { base } from "viem/chains";
 import blockies from "ethereum-blockies";
 
 // Avatar Component with ENS -> Blockies -> Splash fallback
@@ -449,7 +451,11 @@ export function GamblingCard() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               {address ? (
-                <UserAvatar address={address} />
+                <Avatar 
+                  className="w-10 h-10 rounded-full flex-shrink-0"
+                  address={address as `0x${string}`}
+                  chain={base}
+                />
               ) : (
                 <div className="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
                   <span className="text-white font-bold">0x</span>
@@ -457,7 +463,19 @@ export function GamblingCard() {
               )}
               <div>
                 <p className="font-medium text-black">
-                  {address ? formatDisplayName(address) : "......"}
+                  {address ? (
+                    <Name 
+                      className="font-medium text-black"
+                      address={address as `0x${string}`}
+                      chain={base}
+                    >
+                      <span className="font-medium text-black">
+                        {formatDisplayName(address)}
+                      </span>
+                    </Name>
+                  ) : (
+                    "......"
+                  )}
                 </p>
                 <p className="text-sm text-gray-600">
                   {formattedBalance} $SLOT

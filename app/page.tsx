@@ -17,6 +17,7 @@ import {
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAccount } from "wagmi";
 import Image from "next/image";
+import { base } from "viem/chains";
 
 import { GamblingCard } from "./components/GamblingCard";
 import { Button, Icon } from "./components/DemoComponents";
@@ -95,7 +96,26 @@ export default function App() {
             </button>
             <Wallet className="z-10">
               <ConnectWallet className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 font-mono border-2 border-blue-800 shadow-md">
-                {isConnected && address ? formatAddress(address) : "CONNECT"}
+                {isConnected && address ? (
+                  <div className="flex items-center gap-2">
+                    <Avatar 
+                      className="w-4 h-4 rounded-full flex-shrink-0"
+                      address={address as `0x${string}`}
+                      chain={base}
+                    />
+                    <Name 
+                      className="text-xs font-bold truncate"
+                      address={address as `0x${string}`}
+                      chain={base}
+                    >
+                      <span className="text-xs font-bold truncate">
+                        {formatAddress(address)}
+                      </span>
+                    </Name>
+                  </div>
+                ) : (
+                  "CONNECT"
+                )}
               </ConnectWallet>
               <WalletDropdown>
                 <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>

@@ -17,7 +17,6 @@ import {
   TransactionStatus,
 } from "@coinbase/onchainkit/transaction";
 import { useNotification } from "@coinbase/onchainkit/minikit";
-import { Button, Icon } from "./DemoComponents";
 import { CONTRACTS, ERC20_ABI } from "../../lib/contracts";
 import { AnimatedSlotMachine } from "./AnimatedSlotMachine";
 import {
@@ -95,7 +94,7 @@ function UserAvatar({ address }: { address: string }) {
 
 export function GamblingCard() {
   const { address } = useAccount();
-  
+
   // Try to get ENS name for the connected address
   const { data: ensName } = useEnsName({
     address: address as `0x${string}`,
@@ -114,12 +113,35 @@ export function GamblingCard() {
   const [slotResult, setSlotResult] = useState<"win" | "lose" | null>(null);
 
   // User stats state
-  const [userStats, setUserStats] = useState({ spins: 0, wins: 0, totalWon: "0" });
-  
+  const [userStats, setUserStats] = useState({
+    spins: 0,
+    wins: 0,
+    totalWon: "0",
+  });
+
   // Global stats state
-  const [globalStats, setGlobalStats] = useState({ totalGames: 0, totalWins: 0, totalPlayers: 0 });
+  const [globalStats, setGlobalStats] = useState({
+    totalGames: 0,
+    totalWins: 0,
+    totalPlayers: 0,
+  });
 
   const sendNotification = useNotification();
+
+  // Load win difficulty from contract
+  const loadWinDifficulty = useCallback(async () => {
+    try {
+      const difficulty = await getWinDifficulty();
+      setWinDifficulty(difficulty);
+      console.log("Loaded win difficulty:", difficulty.toString());
+    } catch (error) {
+      console.error("Failed to load win difficulty:", error);
+      await sendNotification({
+        title: "Error",
+        body: "Failed to load win difficulty from contract",
+      });
+    }
+  }, [sendNotification]);
 
   // Load user stats and create account when address changes
   useEffect(() => {
@@ -131,10 +153,10 @@ export function GamblingCard() {
     const loadUserStats = async () => {
       try {
         // Create user account if doesn't exist
-        await fetch('/api/user-stats', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address, action: 'create' }),
+        await fetch("/api/user-stats", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ address, action: "create" }),
         });
 
         // Load user stats
@@ -144,40 +166,44 @@ export function GamblingCard() {
           setUserStats(stats);
         }
       } catch (error) {
-        console.error('Error loading user stats:', error);
+        console.error("Error loading user stats:", error);
       }
     };
 
     loadUserStats();
   }, [address]);
 
-  // Load global stats
+  // Load global stats and win difficulty
   useEffect(() => {
     const loadGlobalStats = async () => {
       try {
-        const response = await fetch('/api/global-stats');
+        const response = await fetch("/api/global-stats");
         if (response.ok) {
           const stats = await response.json();
           setGlobalStats(stats);
         }
       } catch (error) {
-        console.error('Error loading global stats:', error);
+        console.error("Error loading global stats:", error);
       }
     };
 
-    loadGlobalStats();
-  }, []);
+    const loadInitialData = async () => {
+      await Promise.all([loadGlobalStats(), loadWinDifficulty()]);
+    };
+
+    loadInitialData();
+  }, [loadWinDifficulty]);
 
   // Function to refresh global stats
   const refreshGlobalStats = useCallback(async () => {
     try {
-      const response = await fetch('/api/global-stats');
+      const response = await fetch("/api/global-stats");
       if (response.ok) {
         const stats = await response.json();
         setGlobalStats(stats);
       }
     } catch (error) {
-      console.error('Error refreshing global stats:', error);
+      console.error("Error refreshing global stats:", error);
     }
   }, []);
 
@@ -244,21 +270,6 @@ export function GamblingCard() {
     ];
   }, [address]);
 
-  // Load win difficulty from contract
-  const loadWinDifficulty = useCallback(async () => {
-    try {
-      const difficulty = await getWinDifficulty();
-      setWinDifficulty(difficulty);
-      console.log("Loaded win difficulty:", difficulty.toString());
-    } catch (error) {
-      console.error("Failed to load win difficulty:", error);
-      await sendNotification({
-        title: "Error",
-        body: "Failed to load win difficulty from contract",
-      });
-    }
-  }, [sendNotification]);
-
   // Handle successful ERC20 transfer
   const handleTransferSuccess = useCallback(
     async (response: TransactionResponse) => {
@@ -289,108 +300,108 @@ export function GamblingCard() {
       setSlotResult(userWins ? "win" : "lose");
       setIsSlotSpinning(false);
 
-             if (userWins && address) {
-         try {
-           // Automatically call gamblyWin as contract owner
-           const claimTxHash = await callGamblyWinAsOwner(address);
-           setLastResult({
-             won: true,
-             txHash: transactionHash,     // Gamble transaction
-             claimTxHash: claimTxHash,    // Claim transaction
-             claimed: true,
-           });
+      if (userWins && address) {
+        try {
+          // Automatically call gamblyWin as contract owner
+          const claimTxHash = await callGamblyWinAsOwner(address);
+          setLastResult({
+            won: true,
+            txHash: transactionHash, // Gamble transaction
+            claimTxHash: claimTxHash, // Claim transaction
+            claimed: true,
+          });
 
-           // Refetch balance after claiming prize
-           refetchBalance();
-           refetchJackpotBalance();
+          // Refetch balance after claiming prize
+          refetchBalance();
+          refetchJackpotBalance();
 
-           // Update user stats for win (assuming 50k tokens prize)
-           try {
-             const statsResponse = await fetch('/api/user-stats', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ 
-                 address, 
-                 action: 'update', 
-                 isWin: true, 
-                 tokensWon: (50000 * 10**18).toString() 
-               }),
-             });
-                           if (statsResponse.ok) {
-                const updatedStats = await statsResponse.json();
-                setUserStats(updatedStats);
-                // Refresh global stats after successful update
-                await refreshGlobalStats();
-              }
-            } catch (statsError) {
-              console.error('Error updating stats for win:', statsError);
-            }
-
-           await sendNotification({
-             title: "🎉 Congratulations! You Won!",
-             body: `You won the gamble! Prize automatically claimed! View transaction: https://basescan.org/tx/${claimTxHash}`,
-           });
-         } catch (error) {
-           console.error("Failed to automatically claim prize:", error);
-           setLastResult({ won: true, txHash: transactionHash });
-
-           // Still update stats for spin even if claim failed
-           try {
-             const statsResponse = await fetch('/api/user-stats', {
-               method: 'POST',
-               headers: { 'Content-Type': 'application/json' },
-               body: JSON.stringify({ 
-                 address, 
-                 action: 'update', 
-                 isWin: true, 
-                 tokensWon: "0" // No tokens won since claim failed
-               }),
-             });
-             if (statsResponse.ok) {
-               const updatedStats = await statsResponse.json();
-               setUserStats(updatedStats);
-               // Refresh global stats after successful update
-               await refreshGlobalStats();
-             }
-           } catch (statsError) {
-             console.error('Error updating stats for failed win:', statsError);
-           }
-
-           await sendNotification({
-             title: "🎉 Congratulations! You Won!",
-             body: `You won the gamble! Prize claim failed. Please try again.`,
-           });
-         }
-       } else {
-         setLastResult({ won: false, txHash: transactionHash }); // Add txHash for losing transactions too
-
-         // Update user stats for loss
-         try {
-           const statsResponse = await fetch('/api/user-stats', {
-             method: 'POST',
-             headers: { 'Content-Type': 'application/json' },
-             body: JSON.stringify({ 
-               address, 
-               action: 'update', 
-               isWin: false, 
-               tokensWon: "0" 
-             }),
-           });
-                       if (statsResponse.ok) {
+          // Update user stats for win (assuming 50k tokens prize)
+          try {
+            const statsResponse = await fetch("/api/user-stats", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                address,
+                action: "update",
+                isWin: true,
+                tokensWon: (50000 * 10 ** 18).toString(),
+              }),
+            });
+            if (statsResponse.ok) {
               const updatedStats = await statsResponse.json();
               setUserStats(updatedStats);
               // Refresh global stats after successful update
               await refreshGlobalStats();
             }
           } catch (statsError) {
-            console.error('Error updating stats for loss:', statsError);
+            console.error("Error updating stats for win:", statsError);
           }
 
-         await sendNotification({
-           title: "Better luck next time!",
-           body: `Transfer completed but you didn't win this round. Try again!`,
-         });
-       }
+          await sendNotification({
+            title: "🎉 Congratulations! You Won!",
+            body: `You won the gamble! Prize automatically claimed! View transaction: https://basescan.org/tx/${claimTxHash}`,
+          });
+        } catch (error) {
+          console.error("Failed to automatically claim prize:", error);
+          setLastResult({ won: true, txHash: transactionHash });
+
+          // Still update stats for spin even if claim failed
+          try {
+            const statsResponse = await fetch("/api/user-stats", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                address,
+                action: "update",
+                isWin: true,
+                tokensWon: "0", // No tokens won since claim failed
+              }),
+            });
+            if (statsResponse.ok) {
+              const updatedStats = await statsResponse.json();
+              setUserStats(updatedStats);
+              // Refresh global stats after successful update
+              await refreshGlobalStats();
+            }
+          } catch (statsError) {
+            console.error("Error updating stats for failed win:", statsError);
+          }
+
+          await sendNotification({
+            title: "🎉 Congratulations! You Won!",
+            body: `You won the gamble! Prize claim failed. Please try again.`,
+          });
+        }
+      } else {
+        setLastResult({ won: false, txHash: transactionHash }); // Add txHash for losing transactions too
+
+        // Update user stats for loss
+        try {
+          const statsResponse = await fetch("/api/user-stats", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              address,
+              action: "update",
+              isWin: false,
+              tokensWon: "0",
+            }),
+          });
+          if (statsResponse.ok) {
+            const updatedStats = await statsResponse.json();
+            setUserStats(updatedStats);
+            // Refresh global stats after successful update
+            await refreshGlobalStats();
+          }
+        } catch (statsError) {
+          console.error("Error updating stats for loss:", statsError);
+        }
+
+        await sendNotification({
+          title: "Better luck next time!",
+          body: `Transfer completed but you didn't win this round. Try again!`,
+        });
+      }
 
       // Reset transaction component to show gamble button again
       setTransactionKey((prev) => prev + 1);
@@ -405,30 +416,30 @@ export function GamblingCard() {
     ],
   );
 
-     // Handle transaction error
-   const handleTransferError = useCallback(
-     async (error: TransactionError) => {
-       console.error("ERC20 Transfer failed:", error);
-       setIsSlotSpinning(false);
-       setSlotResult("lose"); // Show lose instead of null when transaction fails
-       
-       // Don't update stats for failed transactions - spin didn't actually happen
-       
-       await sendNotification({
-         title: "Transfer Failed",
-         body: "The ERC20 transfer transaction failed. Please try again.",
-       });
-     },
-     [sendNotification],
-   );
+  // Handle transaction error
+  const handleTransferError = useCallback(
+    async (error: TransactionError) => {
+      console.error("ERC20 Transfer failed:", error);
+      setIsSlotSpinning(false);
+      setSlotResult("lose"); // Show lose instead of null when transaction fails
 
-     const formatDisplayName = (addr: string) => {
-     // Use ENS name if available, otherwise show shortened address
-     if (ensName && addr === address) {
-       return ensName;
-     }
-     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-   };
+      // Don't update stats for failed transactions - spin didn't actually happen
+
+      await sendNotification({
+        title: "Transfer Failed",
+        body: "The ERC20 transfer transaction failed. Please try again.",
+      });
+    },
+    [sendNotification],
+  );
+
+  const formatDisplayName = (addr: string) => {
+    // Use ENS name if available, otherwise show shortened address
+    if (ensName && addr === address) {
+      return ensName;
+    }
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
 
   return (
     <div className="space-y-4">
@@ -445,9 +456,9 @@ export function GamblingCard() {
                 </div>
               )}
               <div>
-                                 <p className="font-medium text-black">
-                   {address ? formatDisplayName(address) : "......"}
-                 </p>
+                <p className="font-medium text-black">
+                  {address ? formatDisplayName(address) : "......"}
+                </p>
                 <p className="text-sm text-gray-600">
                   {formattedBalance} $SLOT
                 </p>
@@ -458,19 +469,19 @@ export function GamblingCard() {
             </button>
           </div>
 
-                 {/* Gambling King Status */}
-           <div className="flex items-center space-x-4">
-             <div className="flex items-center space-x-2">
-               <span className="text-2xl">👑</span>
-               <span className="text-orange-500 font-bold">GAMBLING KING</span>
-             </div>
-             <div className="flex space-x-4 text-sm">
-               <span className="text-black">{userStats.spins} SPINS</span>
-               <span className="text-black">{userStats.wins} WINS</span>
-             </div>
+          {/* Gambling King Status */}
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-2xl">👑</span>
+              <span className="text-orange-500 font-bold">GAMBLING KING</span>
+            </div>
+            <div className="flex space-x-4 text-sm">
+              <span className="text-black">{userStats.spins} SPINS</span>
+              <span className="text-black">{userStats.wins} WINS</span>
+            </div>
           </div>
         </div>
-       )}
+      )}
       {/* Jackpot Pool */}
       <div className="text-center">
         <div className="text-3xl font-bold text-blue-600 mb-1">
@@ -489,16 +500,14 @@ export function GamblingCard() {
             <div className="text-2xl font-bold text-blue-600 animate-pulse">
               {globalStats.totalGames.toLocaleString()}
             </div>
-                         <div className="text-xs text-gray-600">
-               TOTAL GAMES PLAYED
-             </div>
+            <div className="text-xs text-gray-600">TOTAL GAMES PLAYED</div>
           </div>
           <div>
             <div
               className="text-2xl font-bold text-blue-600 animate-pulse"
               style={{ animationDelay: "0.3s" }}
             >
-              1/1000
+              1/{winDifficulty?.toString()}
             </div>
             <div className="text-xs text-gray-600">CURRENT WIN CHANCE</div>
           </div>
@@ -595,29 +604,6 @@ export function GamblingCard() {
           )}
         </div>
       )}
-
-      <div className="hidden">
-        <div className="flex items-center justify-between p-3 bg-gray-100 rounded-lg">
-          <span className="text-sm font-medium">Win Difficulty:</span>
-          <div className="flex items-center space-x-2">
-            {winDifficulty ? (
-              <span className="text-blue-600 font-mono text-sm">
-                {winDifficulty.toString()}
-              </span>
-            ) : (
-              <span className="text-gray-500 text-sm">Not loaded</span>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={loadWinDifficulty}
-              icon={<Icon name="arrow-right" size="sm" />}
-            >
-              Load
-            </Button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

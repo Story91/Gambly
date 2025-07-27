@@ -121,7 +121,7 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
           }
           
           ctx.globalAlpha = s;
-          ctx.font = scale * s + 'px Helvetica';
+          ctx.font = scale * s + 'px "Pixelify Sans", cursive, sans-serif';
           ctx.fillText(charsArray[c], scale * i, (j + o) * scale);
         }
         
@@ -180,7 +180,7 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
             }
             
             ctx.globalAlpha = alpha;
-            ctx.font = `${fontSize}px Helvetica`;
+            ctx.font = `${fontSize}px "Pixelify Sans", cursive, sans-serif`;
             ctx.fillText(charsArray[c], startX + scale * i, canvas.height / 2 + j * scale);
           }
         }

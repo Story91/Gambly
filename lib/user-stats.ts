@@ -1,0 +1,162 @@
+import { redis } from './redis';
+
+export interface UserStats {
+  spins: number;
+  wins: number;
+  totalWon: string; // Store as string to preserve precision
+  firstSeen: number;
+  lastSeen: number;
+}
+
+export interface UserProfile {
+  address: string;
+  ensName?: string;
+  baseName?: string;
+  createdAt: number;
+}
+
+export async function getUserStats(address: string): Promise<UserStats> {
+  if (!redis || !address) {
+    return { spins: 0, wins: 0, totalWon: "0", firstSeen: 0, lastSeen: 0 };
+  }
+
+  try {
+    const statsData = await redis.hgetall(`user:${address}:stats`);
+    const stats = statsData || {};
+    
+    return {
+      spins: parseInt((stats.spins as string) || "0"),
+      wins: parseInt((stats.wins as string) || "0"),
+      totalWon: (stats.totalWon as string) || "0",
+      firstSeen: parseInt((stats.firstSeen as string) || "0"),
+      lastSeen: parseInt((stats.lastSeen as string) || "0"),
+    };
+  } catch (error) {
+    console.error("Error getting user stats:", error);
+    return { spins: 0, wins: 0, totalWon: "0", firstSeen: 0, lastSeen: 0 };
+  }
+}
+
+export async function updateUserStats(
+  address: string, 
+  isWin: boolean, 
+  tokensWon: string = "0"
+): Promise<void> {
+  if (!redis || !address) return;
+
+  try {
+    const now = Date.now();
+    const key = `user:${address}:stats`;
+    
+    // Get current stats or create new
+    const currentStats = await getUserStats(address);
+    
+    // Calculate new stats
+    const newSpins = currentStats.spins + 1;
+    const newWins = isWin ? currentStats.wins + 1 : currentStats.wins;
+    const currentTotalWon = parseFloat(currentStats.totalWon || "0");
+    const additionalWon = parseFloat(tokensWon || "0");
+    const newTotalWon = (currentTotalWon + additionalWon).toString();
+    
+    // Update Redis
+    await redis.hset(key, {
+      spins: newSpins.toString(),
+      wins: newWins.toString(),
+      totalWon: newTotalWon,
+      firstSeen: currentStats.firstSeen || now.toString(),
+      lastSeen: now.toString(),
+    });
+
+    // Update leaderboards
+    await updateLeaderboards(address, newWins, newSpins, parseFloat(newTotalWon));
+    
+  } catch (error) {
+    console.error("Error updating user stats:", error);
+  }
+}
+
+export async function createUserAccount(address: string): Promise<void> {
+  if (!redis || !address) return;
+
+  try {
+    const profileKey = `user:${address}:profile`;
+    const exists = await redis.exists(profileKey);
+    
+    if (!exists) {
+      const now = Date.now();
+      await redis.hset(profileKey, {
+        address,
+        createdAt: now.toString(),
+      });
+      
+      // Initialize stats if they don't exist
+      const statsKey = `user:${address}:stats`;
+      const statsExists = await redis.exists(statsKey);
+      if (!statsExists) {
+        await redis.hset(statsKey, {
+          spins: "0",
+          wins: "0", 
+          totalWon: "0",
+          firstSeen: now.toString(),
+          lastSeen: now.toString(),
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error creating user account:", error);
+  }
+}
+
+async function updateLeaderboards(
+  address: string, 
+  wins: number, 
+  spins: number, 
+  totalWon: number
+): Promise<void> {
+  if (!redis) return;
+
+  try {
+    // Update total won leaderboard
+    await redis.zadd("leaderboard:total_won", { score: totalWon, member: address });
+    
+    // Update win ratio leaderboard (only if user has spins)
+    if (spins > 0) {
+      const winRatio = (wins / spins) * 100;
+      await redis.zadd("leaderboard:win_ratio", { score: winRatio, member: address });
+    }
+  } catch (error) {
+    console.error("Error updating leaderboards:", error);
+  }
+}
+
+export async function getGlobalStats() {
+  if (!redis) {
+    return { totalGames: 0, totalWins: 0, totalPlayers: 0 };
+  }
+
+  try {
+    const statsData = await redis.hgetall("global:stats");
+    const stats = statsData || {};
+    return {
+      totalGames: parseInt((stats.totalGames as string) || "0"),
+      totalWins: parseInt((stats.totalWins as string) || "0"), 
+      totalPlayers: parseInt((stats.totalPlayers as string) || "0"),
+    };
+  } catch (error) {
+    console.error("Error getting global stats:", error);
+    return { totalGames: 0, totalWins: 0, totalPlayers: 0 };
+  }
+}
+
+export async function incrementGlobalStats(isWin: boolean): Promise<void> {
+  if (!redis) return;
+
+  try {
+    await redis.hincrby("global:stats", "totalGames", 1);
+    if (isWin) {
+      await redis.hincrby("global:stats", "totalWins", 1);
+    }
+  } catch (error) {
+    console.error("Error incrementing global stats:", error);
+  }
+} 

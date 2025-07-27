@@ -20,7 +20,7 @@
     "ethereum-blockies": "^0.1.1",
     "ethers": "^6.15.0",
     "keccak": "^3.0.4",
-    "next": "^15.3.3",
+    "next": "^15.4.4",
     "react": "^18",
     "react-dom": "^18",
     "viem": "^2.27.2",

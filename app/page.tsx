@@ -16,6 +16,7 @@ import {
 } from "@coinbase/onchainkit/wallet";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useAccount } from "wagmi";
+import Image from "next/image";
 
 import { GamblingCard } from "./components/GamblingCard";
 import { Button, Icon } from "./components/DemoComponents";
@@ -77,9 +78,11 @@ export default function App() {
         {/* Header */}
         <header className="flex justify-between items-center p-3 bg-white">
           <div className="flex items-center space-x-2">
-            <img 
+            <Image 
               src="/splash.gif" 
               alt="Gambly" 
+              width={32}
+              height={32}
               className="w-8 h-8 rounded-lg object-cover"
             />
             <span className="font-bold text-lg text-gray-800">Gambly</span>

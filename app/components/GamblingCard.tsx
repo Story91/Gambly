@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { useAccount, useReadContract, useEnsAvatar } from "wagmi";
+import Image from "next/image";
 import {
   Transaction,
   TransactionButton,
@@ -48,8 +49,8 @@ function UserAvatar({ address }: { address: string }) {
           scale: 4,
         });
         setAvatarSrc(canvas.toDataURL());
-      } catch (error) {
-        console.error("Blockies error:", error);
+      } catch (err) {
+        console.error("Blockies error:", err);
         setAvatarSrc("/splash.gif"); // Fallback to splash.gif
       }
     }
@@ -65,9 +66,9 @@ function UserAvatar({ address }: { address: string }) {
           scale: 4,
         });
         setAvatarSrc(canvas.toDataURL());
-      } catch (error) {
-        setAvatarSrc("/splash.gif");
-      }
+             } catch {
+         setAvatarSrc("/splash.gif");
+       }
     } else {
       setAvatarSrc("/splash.gif");
     }
@@ -76,9 +77,11 @@ function UserAvatar({ address }: { address: string }) {
   return (
     <div className="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center overflow-hidden">
       {avatarSrc ? (
-        <img 
+        <Image 
           src={avatarSrc} 
           alt="Avatar" 
+          width={40}
+          height={40}
           className="w-full h-full rounded-full object-cover"
           onError={handleAvatarError}
         />
@@ -157,9 +160,9 @@ export function GamblingCard() {
       if (numBalance === 0) return "0";
       if (numBalance < 0.01) return "<0.01";
       return numBalance.toLocaleString(undefined, { maximumFractionDigits: 2 });
-    } catch (error) {
-      return "$$$";
-    }
+         } catch {
+       return "$$$";
+     }
   }, [tokenBalance]);
 
   // ERC20 transfer transaction call
@@ -211,8 +214,8 @@ export function GamblingCard() {
         try {
           currentWinDifficulty = await getWinDifficulty();
           setWinDifficulty(currentWinDifficulty);
-        } catch (error) {
-          console.error("Failed to load win difficulty:", error);
+        } catch (err) {
+          console.error("Failed to load win difficulty:", err);
         }
       }
 
@@ -289,7 +292,7 @@ export function GamblingCard() {
       {/* Welcome Bonus */}
       {!claimedBonus && (
         <div className="bg-blue-600 text-white p-4 rounded-lg">
-          <p className="text-sm mb-2">Oh, it's your first time, we have a gift.</p>
+          <p className="text-sm mb-2">Oh, it&apos;s your first time, we have a gift.</p>
           <p className="text-sm mb-3">Just, claim and thank us later :)</p>
           <div className="flex justify-between items-center">
             <span className="text-2xl font-bold">1000 $SLOT</span>

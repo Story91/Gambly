@@ -28,8 +28,8 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Animation settings - dostosowane do 5 rzędów
-    let text = displayText;
+         // Animation settings - dostosowane do 5 rzędów
+     const text = displayText;
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
     const scale = 32; // Zmniejszone z 50 na 32, żeby zmieścić więcej rzędów
     const breaks = 0.003;

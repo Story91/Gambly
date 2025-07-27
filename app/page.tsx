@@ -15,6 +15,7 @@ import {
   WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
 import { useEffect, useMemo, useState, useCallback } from "react";
+import { useAccount } from "wagmi";
 
 import { GamblingCard } from "./components/GamblingCard";
 import { Button, Icon } from "./components/DemoComponents";
@@ -22,6 +23,8 @@ import { Button, Icon } from "./components/DemoComponents";
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
+  const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const { address, isConnected } = useAccount();
 
   const addFrame = useAddFrame();
 
@@ -63,36 +66,77 @@ export default function App() {
     return null;
   }, [context, frameAdded, handleAddFrame]);
 
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+  };
+
   return (
-    <div className="flex flex-col min-h-screen font-sans text-[var(--app-foreground)] mini-app-theme from-[var(--app-background)] to-[var(--app-gray)]">
-      <div className="w-full max-w-md mx-auto px-4 py-3">
-        <header className="flex justify-between items-center mb-3 h-11">
-          <div>
-            <div className="flex items-center space-x-2">
-              <Wallet className="z-10">
-                <ConnectWallet>
-                  <Name className="text-inherit" />
-                </ConnectWallet>
-                <WalletDropdown>
-                  <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-                    <Avatar />
-                    <Name />
-                    <Address />
-                    <EthBalance />
-                  </Identity>
-                  <WalletDropdownDisconnect />
-                </WalletDropdown>
-              </Wallet>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 font-mono">
+      {/* Main Container */}
+      <div className="w-full max-w-md mx-auto bg-white min-h-screen relative">
+        {/* Header */}
+        <header className="flex justify-between items-center p-3 bg-white">
+          <div className="flex items-center space-x-2">
+            <img 
+              src="/splash.gif" 
+              alt="Gambly" 
+              className="w-8 h-8 rounded-lg object-cover"
+            />
+            <span className="font-bold text-lg text-gray-800">Gambly</span>
           </div>
-          <div>{saveFrameButton}</div>
+          <div className="flex space-x-1">
+            <button 
+              onClick={() => setShowHowItWorks(true)}
+              className="px-2 py-1 border border-gray-300 rounded text-xs font-medium hover:bg-gray-50 font-mono"
+            >
+              HOW IT WORKS
+            </button>
+            <Wallet className="z-10">
+              <ConnectWallet className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 font-mono border-2 border-blue-800 shadow-md">
+                {isConnected && address ? formatAddress(address) : 'CONNECT'}
+              </ConnectWallet>
+              <WalletDropdown>
+                <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
+                  <Avatar />
+                  <Name />
+                  <Address />
+                  <EthBalance />
+                </Identity>
+                <WalletDropdownDisconnect />
+              </WalletDropdown>
+            </Wallet>
+          </div>
         </header>
 
-        <main className="flex-1">
+        {/* How It Works Modal */}
+        {showHowItWorks && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowHowItWorks(false)}>
+            <div className="bg-white rounded-lg p-6 mx-4 max-w-sm" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-bold font-mono">HOW IT WORKS</h2>
+                <button onClick={() => setShowHowItWorks(false)} className="text-gray-500 hover:text-gray-700 font-mono">✕</button>
+              </div>
+              <div className="text-center">
+                <p className="text-gray-600 mb-4 font-mono">GAMBLING PAPER</p>
+                <div className="text-sm text-gray-500 font-mono">
+                  Connect your wallet, set amount, and gamble to win $SLOT tokens!
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Main Content */}
+        <main className="px-4">
           <GamblingCard />
         </main>
 
-        <footer className="mt-2 pt-4 flex justify-center"></footer>
+        {/* Save Frame Button */}
+        {saveFrameButton && (
+          <div className="fixed bottom-4 right-4">
+            {saveFrameButton}
+          </div>
+        )}
       </div>
     </div>
   );

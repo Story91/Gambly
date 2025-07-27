@@ -17,6 +17,7 @@
     "@farcaster/frame-sdk": "^0.0.60",
     "@tanstack/react-query": "^5",
     "@upstash/redis": "^1.34.4",
+    "ethereum-blockies": "^0.1.1",
     "ethers": "^6.15.0",
     "keccak": "^3.0.4",
     "next": "^15.3.3",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
     "@openzeppelin/contracts": "^5.4.0",
+    "@types/ethereum-blockies": "^0.1.2",
     "@types/keccak": "^3.0.5",
     "@types/minimatch": "^6.0.0",
     "@types/node": "^20",

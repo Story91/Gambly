@@ -1,4 +1,12 @@
 import { redis } from './redis';
+import { createPublicClient, http } from 'viem';
+import { mainnet } from 'viem/chains';
+
+// Create client for ENS resolution
+const mainnetClient = createPublicClient({
+  chain: mainnet,
+  transport: http()
+});
 
 export interface UserStats {
   spins: number;
@@ -13,6 +21,71 @@ export interface UserProfile {
   ensName?: string;
   baseName?: string;
   createdAt: number;
+}
+
+// Helper function to resolve ENS name
+async function resolveEnsName(address: string): Promise<string | null> {
+  try {
+    const ensName = await mainnetClient.getEnsName({
+      address: address as `0x${string}`
+    });
+    return ensName;
+  } catch (error) {
+    console.error('Error resolving ENS name:', error);
+    return null;
+  }
+}
+
+// Helper function to resolve basename (simplified - would need Coinbase API in production)
+async function resolveBasename(address: string): Promise<string | null> {
+  try {
+    // For now, we'll use a simple approach
+    // In production, you'd use Coinbase's basename resolution API
+    const response = await fetch(`https://resolver-api.coinbase.com/v1/name/${address}`, {
+      headers: {
+        'Accept': 'application/json',
+      }
+    });
+    
+    if (response.ok) {
+      const data = await response.json() as { name?: string };
+      return data.name || null;
+    }
+    return null;
+  } catch (error) {
+    console.error('Error resolving basename:', error);
+    return null;
+  }
+}
+
+// Main function to resolve any name (ENS or basename) with caching
+async function resolveDisplayName(address: string): Promise<string | undefined> {
+  if (!redis || !address) return undefined;
+
+  try {
+    // Check cache first
+    const cacheKey = `name:${address}`;
+    const cached = await redis.get(cacheKey) as string | null;
+    if (cached) {
+      return cached === 'null' ? undefined : cached;
+    }
+
+    // Try ENS first
+    let displayName = await resolveEnsName(address);
+    
+    // If no ENS, try basename
+    if (!displayName) {
+      displayName = await resolveBasename(address);
+    }
+
+    // Cache result for 1 hour
+    await redis.setex(cacheKey, 3600, displayName ?? 'null');
+    
+    return displayName ?? undefined;
+  } catch (error) {
+    console.error('Error resolving display name:', error);
+    return undefined;
+  }
 }
 
 export async function getUserStats(address: string): Promise<UserStats> {
@@ -164,6 +237,7 @@ export async function incrementGlobalStats(isWin: boolean): Promise<void> {
 export interface LeaderboardEntry {
   rank: number;
   address: string;
+  displayName?: string; // ENS or basename if available
   totalWon: string;
   spins: number;
   wins: number;
@@ -195,21 +269,36 @@ export async function getLeaderboard(type: 'total_won' | 'win_ratio' = 'total_wo
       
       if (!address) continue;
       
-      // Get detailed stats for this user
+      // Get detailed stats for this user to get additional info
       const userStats = await getUserStats(address);
       
-      const winRatio = userStats.spins > 0 
-        ? ((userStats.wins / userStats.spins) * 100).toFixed(1)
-        : "0.0";
-      
-      leaderboard.push({
-        rank: Math.floor(i / 2) + 1,
-        address,
-        totalWon: userStats.totalWon,
-        spins: userStats.spins,
-        wins: userStats.wins,
-        winRatio: winRatio,
-      });
+             // Resolve display name (ENS or basename)
+       const displayName = await resolveDisplayName(address);
+       
+       // Use score from leaderboard for the primary sorted value
+       if (type === 'total_won') {
+         leaderboard.push({
+           rank: Math.floor(i / 2) + 1,
+           address,
+           displayName,
+           totalWon: score.toString(), // Use score as totalWon
+           spins: userStats.spins,
+           wins: userStats.wins,
+           winRatio: userStats.spins > 0 
+             ? ((userStats.wins / userStats.spins) * 100).toFixed(1)
+             : "0.0",
+         });
+       } else { // win_ratio leaderboard
+         leaderboard.push({
+           rank: Math.floor(i / 2) + 1,
+           address,
+           displayName,
+           totalWon: userStats.totalWon, // Get from stats
+           spins: userStats.spins,
+           wins: userStats.wins,
+           winRatio: score.toFixed(1), // Use score as winRatio
+         });
+       }
     }
     
     return leaderboard;

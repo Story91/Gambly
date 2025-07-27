@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useAccount, useReadContract, useEnsAvatar } from "wagmi";
+import { useAccount, useReadContract, useEnsAvatar, useEnsName } from "wagmi";
 import Image from "next/image";
 import {
   Transaction,
@@ -95,6 +95,11 @@ function UserAvatar({ address }: { address: string }) {
 
 export function GamblingCard() {
   const { address } = useAccount();
+  
+  // Try to get ENS name for the connected address
+  const { data: ensName } = useEnsName({
+    address: address as `0x${string}`,
+  });
   const [winDifficulty, setWinDifficulty] = useState<bigint | null>(null);
   const [lastResult, setLastResult] = useState<{
     won: boolean;
@@ -164,7 +169,7 @@ export function GamblingCard() {
   }, []);
 
   // Function to refresh global stats
-  const refreshGlobalStats = async () => {
+  const refreshGlobalStats = useCallback(async () => {
     try {
       const response = await fetch('/api/global-stats');
       if (response.ok) {
@@ -174,7 +179,7 @@ export function GamblingCard() {
     } catch (error) {
       console.error('Error refreshing global stats:', error);
     }
-  };
+  }, []);
 
   // Read token balance from contract
   const { data: tokenBalance, refetch: refetchBalance } = useReadContract({
@@ -417,9 +422,13 @@ export function GamblingCard() {
      [sendNotification],
    );
 
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
+     const formatDisplayName = (addr: string) => {
+     // Use ENS name if available, otherwise show shortened address
+     if (ensName && addr === address) {
+       return ensName;
+     }
+     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+   };
 
   return (
     <div className="space-y-4">
@@ -436,9 +445,9 @@ export function GamblingCard() {
                 </div>
               )}
               <div>
-                <p className="font-medium text-black">
-                  {address ? formatAddress(address) : "......"}
-                </p>
+                                 <p className="font-medium text-black">
+                   {address ? formatDisplayName(address) : "......"}
+                 </p>
                 <p className="text-sm text-gray-600">
                   {formattedBalance} $SLOT
                 </p>

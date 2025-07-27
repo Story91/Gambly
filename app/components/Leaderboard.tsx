@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 interface LeaderboardEntry {
   rank: number;
   address: string;
+  displayName?: string; // ENS or basename if available
   totalWon: string;
   spins: number;
   wins: number;
@@ -44,8 +45,11 @@ export function Leaderboard() {
     return () => clearInterval(interval);
   }, []);
 
-  const formatAddress = (address: string) => {
-    return `${address.slice(0, 6)}...${address.slice(-4)}`;
+  const formatDisplayName = (player: LeaderboardEntry) => {
+    if (player.displayName) {
+      return player.displayName;
+    }
+    return `${player.address.slice(0, 6)}...${player.address.slice(-4)}`;
   };
 
   const formatTokens = (totalWon: string) => {
@@ -103,9 +107,9 @@ export function Leaderboard() {
                     {player.rank}
                   </span>
                 </div>
-                <div className="text-xs overflow-hidden text-ellipsis whitespace-nowrap">
-                  {formatAddress(player.address)}
-                </div>
+                                          <div className="text-xs overflow-hidden text-ellipsis whitespace-nowrap">
+                            {formatDisplayName(player)}
+                          </div>
                 <div className="overflow-hidden text-ellipsis whitespace-nowrap">
                   {formatTokens(player.totalWon)}
                 </div>

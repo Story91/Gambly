@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getGlobalStats } from '../../../lib/user-stats';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const globalStats = await getGlobalStats();
     return NextResponse.json(globalStats);

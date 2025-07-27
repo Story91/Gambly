@@ -58,8 +58,8 @@ REDIS_URL=
 REDIS_TOKEN=
 
 # Gambling Contract Configuration
-NEXT_PUBLIC_ERC20_CONTRACT_ADDRESS=0xdc490BD9459a8B6Ea957e578f5Ccd97e01EF5Cb4
-NEXT_PUBLIC_GAMBLING_CONTRACT_ADDRESS=0x875341847cb0cacb2fbfab553b111352d92c033b
+NEXT_PUBLIC_ERC20_CONTRACT_ADDRESS=0xbb97f8257cd4ba47ae5c979afcf12eb19d1723e8
+NEXT_PUBLIC_GAMBLING_CONTRACT_ADDRESS=0x7d0CF0F993568c38061942f8Eaaa3B2ec084441B
 
 # Private key of the gambling contract owner (without 0x prefix)
 # This is used to automatically call gamblyWin function when users win

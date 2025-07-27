@@ -1,8 +1,8 @@
 // Contract addresses and ABIs for Gambly App
 
 export const CONTRACTS = {
-  ERC20_ADDRESS: process.env.NEXT_PUBLIC_ERC20_CONTRACT_ADDRESS as `0x${string}` || '0xdc490BD9459a8B6Ea957e578f5Ccd97e01EF5Cb4',
-  GAMBLING_ADDRESS: process.env.NEXT_PUBLIC_GAMBLING_CONTRACT_ADDRESS as `0x${string}` || '0x875341847cb0cacb2fbfab553b111352d92c033b',
+  ERC20_ADDRESS: process.env.NEXT_PUBLIC_ERC20_CONTRACT_ADDRESS as `0x${string}` || '0xbb97f8257cd4ba47ae5c979afcf12eb19d1723e8',
+  GAMBLING_ADDRESS: process.env.NEXT_PUBLIC_GAMBLING_CONTRACT_ADDRESS as `0x${string}` || '0x7d0CF0F993568c38061942f8Eaaa3B2ec084441B',
 } as const;
 
 // ABI for the Gambling Contract

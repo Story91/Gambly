@@ -159,4 +159,62 @@ export async function incrementGlobalStats(isWin: boolean): Promise<void> {
   } catch (error) {
     console.error("Error incrementing global stats:", error);
   }
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  address: string;
+  totalWon: string;
+  spins: number;
+  wins: number;
+  winRatio: string;
+}
+
+export async function getLeaderboard(type: 'total_won' | 'win_ratio' = 'total_won', limit: number = 10): Promise<LeaderboardEntry[]> {
+  if (!redis) return [];
+
+  try {
+    const leaderboardKey = `leaderboard:${type}`;
+    
+    // Get top players from sorted set (descending order using zrange with REV)
+    const topPlayers = await redis.zrange(leaderboardKey, 0, limit - 1, { 
+      rev: true, 
+      withScores: true 
+    });
+    
+    if (!topPlayers || topPlayers.length === 0) {
+      return [];
+    }
+
+    const leaderboard: LeaderboardEntry[] = [];
+    
+    // Process players in pairs (member, score)
+    for (let i = 0; i < topPlayers.length; i += 2) {
+      const address = topPlayers[i] as string;
+      const score = topPlayers[i + 1] as number;
+      
+      if (!address) continue;
+      
+      // Get detailed stats for this user
+      const userStats = await getUserStats(address);
+      
+      const winRatio = userStats.spins > 0 
+        ? ((userStats.wins / userStats.spins) * 100).toFixed(1)
+        : "0.0";
+      
+      leaderboard.push({
+        rank: Math.floor(i / 2) + 1,
+        address,
+        totalWon: userStats.totalWon,
+        spins: userStats.spins,
+        wins: userStats.wins,
+        winRatio: winRatio,
+      });
+    }
+    
+    return leaderboard;
+  } catch (error) {
+    console.error("Error getting leaderboard:", error);
+    return [];
+  }
 } 

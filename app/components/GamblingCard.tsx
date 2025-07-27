@@ -110,6 +110,9 @@ export function GamblingCard() {
 
   // User stats state
   const [userStats, setUserStats] = useState({ spins: 0, wins: 0, totalWon: "0" });
+  
+  // Global stats state
+  const [globalStats, setGlobalStats] = useState({ totalGames: 0, totalWins: 0, totalPlayers: 0 });
 
   const sendNotification = useNotification();
 
@@ -142,6 +145,36 @@ export function GamblingCard() {
 
     loadUserStats();
   }, [address]);
+
+  // Load global stats
+  useEffect(() => {
+    const loadGlobalStats = async () => {
+      try {
+        const response = await fetch('/api/global-stats');
+        if (response.ok) {
+          const stats = await response.json();
+          setGlobalStats(stats);
+        }
+      } catch (error) {
+        console.error('Error loading global stats:', error);
+      }
+    };
+
+    loadGlobalStats();
+  }, []);
+
+  // Function to refresh global stats
+  const refreshGlobalStats = async () => {
+    try {
+      const response = await fetch('/api/global-stats');
+      if (response.ok) {
+        const stats = await response.json();
+        setGlobalStats(stats);
+      }
+    } catch (error) {
+      console.error('Error refreshing global stats:', error);
+    }
+  };
 
   // Read token balance from contract
   const { data: tokenBalance, refetch: refetchBalance } = useReadContract({
@@ -278,13 +311,15 @@ export function GamblingCard() {
                  tokensWon: (50000 * 10**18).toString() 
                }),
              });
-             if (statsResponse.ok) {
-               const updatedStats = await statsResponse.json();
-               setUserStats(updatedStats);
-             }
-           } catch (statsError) {
-             console.error('Error updating stats for win:', statsError);
-           }
+                           if (statsResponse.ok) {
+                const updatedStats = await statsResponse.json();
+                setUserStats(updatedStats);
+                // Refresh global stats after successful update
+                await refreshGlobalStats();
+              }
+            } catch (statsError) {
+              console.error('Error updating stats for win:', statsError);
+            }
 
            await sendNotification({
              title: "🎉 Congratulations! You Won!",
@@ -309,6 +344,8 @@ export function GamblingCard() {
              if (statsResponse.ok) {
                const updatedStats = await statsResponse.json();
                setUserStats(updatedStats);
+               // Refresh global stats after successful update
+               await refreshGlobalStats();
              }
            } catch (statsError) {
              console.error('Error updating stats for failed win:', statsError);
@@ -334,13 +371,15 @@ export function GamblingCard() {
                tokensWon: "0" 
              }),
            });
-           if (statsResponse.ok) {
-             const updatedStats = await statsResponse.json();
-             setUserStats(updatedStats);
-           }
-         } catch (statsError) {
-           console.error('Error updating stats for loss:', statsError);
-         }
+                       if (statsResponse.ok) {
+              const updatedStats = await statsResponse.json();
+              setUserStats(updatedStats);
+              // Refresh global stats after successful update
+              await refreshGlobalStats();
+            }
+          } catch (statsError) {
+            console.error('Error updating stats for loss:', statsError);
+          }
 
          await sendNotification({
            title: "Better luck next time!",
@@ -357,6 +396,7 @@ export function GamblingCard() {
       sendNotification,
       refetchBalance,
       refetchJackpotBalance,
+      refreshGlobalStats,
     ],
   );
 
@@ -438,11 +478,11 @@ export function GamblingCard() {
         <div className="flex justify-between text-center">
           <div>
             <div className="text-2xl font-bold text-blue-600 animate-pulse">
-              0000000
+              {globalStats.totalGames.toLocaleString()}
             </div>
-            <div className="text-xs text-gray-600">
-              CURRENT POOL GAMES PLAYES COUNT
-            </div>
+                         <div className="text-xs text-gray-600">
+               TOTAL GAMES PLAYED
+             </div>
           </div>
           <div>
             <div

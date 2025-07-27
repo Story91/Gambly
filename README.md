@@ -60,6 +60,7 @@ REDIS_TOKEN=
 # Gambling Contract Configuration
 NEXT_PUBLIC_ERC20_CONTRACT_ADDRESS=0xbb97f8257cd4ba47ae5c979afcf12eb19d1723e8
 NEXT_PUBLIC_GAMBLING_CONTRACT_ADDRESS=0x7d0CF0F993568c38061942f8Eaaa3B2ec084441B
+NEXT_PUBLIC_CLAIM_CONTRACT_ADDRESS=your_claim_contract_address_here
 
 # Private key of the gambling contract owner (without 0x prefix)
 # This is used to automatically call gamblyWin function when users win
@@ -104,6 +105,13 @@ When a user wins the gamble (random number modulo win difficulty equals 0), the 
 2. Passes the user's wallet address as the recipient parameter
 3. Shows a success notification with the claim transaction hash
 4. No manual claim button is shown - the process is fully automated
+
+### Welcome Bonus Claiming
+New users can claim a welcome bonus of tokens:
+1. The system checks if the user has already claimed using the `claimed` mapping in the claim contract
+2. If not claimed, displays a claim button with the amount from `CLAIM_AMOUNT`
+3. Users can claim once per wallet address
+4. The claim amount is dynamically read from the contract and formatted for display
 
 ### Environment Setup
 Make sure to set up your `.env` file with the required variables:

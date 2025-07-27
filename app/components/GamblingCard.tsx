@@ -103,7 +103,6 @@ export function GamblingCard() {
     claimed?: boolean;
   } | null>(null);
   const [transactionKey, setTransactionKey] = useState(0);
-  const [claimedBonus, setClaimedBonus] = useState(false);
 
   // Slot machine states
   const [isSlotSpinning, setIsSlotSpinning] = useState(false);
@@ -202,8 +201,8 @@ export function GamblingCard() {
           const claimTxHash = await callGamblyWinAsOwner(address);
           setLastResult({
             won: true,
-            txHash: transactionHash,     // Gamble transaction
-            claimTxHash: claimTxHash,    // Claim transaction
+            txHash: transactionHash, // Gamble transaction
+            claimTxHash: claimTxHash, // Claim transaction
             claimed: true,
           });
 
@@ -258,59 +257,41 @@ export function GamblingCard() {
 
   return (
     <div className="space-y-4">
-      {/* Welcome Bonus */}
-      {!claimedBonus && (
-        <div className="bg-blue-600 text-white p-4 rounded-lg">
-          <p className="text-sm mb-2">
-            Oh, it&apos;s your first time, we have a gift.
-          </p>
-          <p className="text-sm mb-3">Just, claim and thank us later :)</p>
-          <div className="flex justify-between items-center">
-            <span className="text-2xl font-bold">100k $SLOT</span>
-            <button
-              onClick={() => setClaimedBonus(true)}
-              className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium hover:bg-gray-300"
-            >
-              CLAIM
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* User Profile */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          {address ? (
-            <UserAvatar address={address} />
-          ) : (
-            <div className="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
-              <span className="text-white font-bold">0x</span>
+      <div className="flex flex-col gap-4 bg-gray-100 p-4 rounded-lg">
+        {/* User Profile */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            {address ? (
+              <UserAvatar address={address} />
+            ) : (
+              <div className="w-10 h-10 bg-gray-400 rounded-full flex items-center justify-center">
+                <span className="text-white font-bold">0x</span>
+              </div>
+            )}
+            <div>
+              <p className="font-medium text-black">
+                {address ? formatAddress(address) : "......"}
+              </p>
+              <p className="text-sm text-gray-600">{formattedBalance} $SLOT</p>
             </div>
-          )}
-          <div>
-            <p className="font-medium">
-              {address ? formatAddress(address) : "......"}
-            </p>
-            <p className="text-sm text-gray-600">{formattedBalance} $SLOT</p>
+          </div>
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            GET MORE
+          </button>
+        </div>
+
+        {/* Gambling King Status */}
+        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2">
+            <span className="text-2xl">👑</span>
+            <span className="text-orange-500 font-bold">GAMBLING KING</span>
+          </div>
+          <div className="flex space-x-4 text-sm">
+            <span className="text-black">0 SPINS</span>
+            <span className="text-black">0 WINS</span>
           </div>
         </div>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
-          GET MORE
-        </button>
       </div>
-
-      {/* Gambling King Status */}
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2">
-          <span className="text-2xl">👑</span>
-          <span className="text-orange-500 font-bold">GAMBLING KING</span>
-        </div>
-        <div className="flex space-x-4 text-sm">
-          <span>0 SPINS</span>
-          <span>0 WINS</span>
-        </div>
-      </div>
-
       {/* Jackpot Pool */}
       <div className="text-center">
         <div className="text-3xl font-bold text-blue-600 mb-1">
@@ -319,27 +300,36 @@ export function GamblingCard() {
         <div className="text-sm text-gray-600 mb-4 flex items-center justify-center space-x-2">
           <span className="animate-bounce">💰</span>
           <span className="animate-pulse">JACKPOT POOL</span>
-          <span className="animate-bounce" style={{ animationDelay: '0.5s' }}>🎰</span>
+          <span className="animate-bounce" style={{ animationDelay: "0.5s" }}>
+            🎰
+          </span>
         </div>
 
         <div className="flex justify-between text-center">
           <div>
-            <div className="text-2xl font-bold text-blue-600 animate-pulse">0000000</div>
+            <div className="text-2xl font-bold text-blue-600 animate-pulse">
+              0000000
+            </div>
             <div className="text-xs text-gray-600">
               CURRENT POOL GAMES PLAYES COUNT
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-blue-600 animate-pulse" style={{ animationDelay: '0.3s' }}>1/1000</div>
+            <div
+              className="text-2xl font-bold text-blue-600 animate-pulse"
+              style={{ animationDelay: "0.3s" }}
+            >
+              1/1000
+            </div>
             <div className="text-xs text-gray-600">CURRENT WIN CHANCE</div>
           </div>
         </div>
       </div>
 
-      <AnimatedSlotMachine 
-        isSpinning={isSlotSpinning} 
-        result={slotResult} 
-        isGlobalJackpot={slotResult === 'win'} 
+      <AnimatedSlotMachine
+        isSpinning={isSlotSpinning}
+        result={slotResult}
+        isGlobalJackpot={slotResult === "win"}
       />
 
       <div className="text-center">
@@ -401,7 +391,7 @@ export function GamblingCard() {
           {lastResult.txHash && (
             <div className="text-xs text-gray-500 mt-1 space-y-1">
               <p>
-                <a 
+                <a
                   href={`https://basescan.org/tx/${lastResult.txHash}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -412,7 +402,7 @@ export function GamblingCard() {
               </p>
               {lastResult.claimTxHash && (
                 <p>
-                  <a 
+                  <a
                     href={`https://basescan.org/tx/${lastResult.claimTxHash}`}
                     target="_blank"
                     rel="noopener noreferrer"

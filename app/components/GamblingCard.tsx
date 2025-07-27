@@ -19,6 +19,7 @@ import {
 import { useNotification } from "@coinbase/onchainkit/minikit";
 import { Button, Icon } from "./DemoComponents";
 import { CONTRACTS, ERC20_ABI } from "../../lib/contracts";
+import { AnimatedSlotMachine } from "./AnimatedSlotMachine";
 import {
   getWinDifficulty,
   callGamblyWinAsOwner,
@@ -92,44 +93,7 @@ function UserAvatar({ address }: { address: string }) {
   );
 }
 
-// Letter Grid Component
-function LetterGrid({
-  isSpinning,
-  result,
-}: {
-  isSpinning: boolean;
-  result: "win" | "lose" | null;
-}) {
-  const letters = [
-    ["F", "N", "E", "J"],
-    ["A", "G", "D", "C"],
-    ["B", "A", "S", "E"],
-    ["A", "G", "D", "C"],
-    ["F", "N", "E", "J"],
-  ];
 
-  return (
-    <div className="w-full max-w-xs mx-auto">
-      <div className="grid grid-cols-4 gap-1 p-4 bg-gray-100 rounded-lg border">
-        {letters.map((row, rowIndex) =>
-          row.map((letter, colIndex) => (
-            <div
-              key={`${rowIndex}-${colIndex}`}
-              className={`
-                h-12 w-12 flex items-center justify-center text-xl font-bold rounded
-                ${rowIndex === 2 ? "bg-blue-600 text-white" : "bg-white text-gray-800"}
-                ${isSpinning ? "animate-pulse" : ""}
-                ${result === "win" && rowIndex === 2 ? "animate-bounce" : ""}
-              `}
-            >
-              {letter}
-            </div>
-          )),
-        )}
-      </div>
-    </div>
-  );
-}
 
 export function GamblingCard() {
   const { address } = useAccount();
@@ -369,8 +333,8 @@ export function GamblingCard() {
         </div>
       </div>
 
-      {/* Letter Grid */}
-      <LetterGrid isSpinning={isSlotSpinning} result={slotResult} />
+      {/* Animated Slot Machine */}
+      <AnimatedSlotMachine isSpinning={isSlotSpinning} result={slotResult} />
 
       {/* Gamble Button */}
       <div className="text-center">

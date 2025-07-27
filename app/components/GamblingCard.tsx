@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useAccount, useReadContract } from "wagmi";
+import { useAccount, useReadContract, useWalletClient, usePublicClient } from "wagmi";
 import {
   Transaction,
   TransactionButton,
@@ -15,8 +15,10 @@ import {
   TransactionStatusLabel,
   TransactionStatus,
 } from "@coinbase/onchainkit/transaction";
+
 import { Avatar, Name } from "@coinbase/onchainkit/identity";
 import { useNotification } from "@coinbase/onchainkit/minikit";
+import { createFlaunch, ReadWriteFlaunchSDK } from "@flaunch/sdk";
 import { CONTRACTS, ERC20_ABI } from "../../lib/contracts";
 import { AnimatedSlotMachine } from "./AnimatedSlotMachine";
 import {
@@ -24,13 +26,35 @@ import {
   callGamblyWinAsOwner,
 } from "../../lib/gambling-service";
 import { checkWin } from "../../lib/random";
-import { encodeFunctionData, formatUnits } from "viem";
+import { encodeFunctionData, formatUnits, parseEther } from "viem";
 import { base } from "viem/chains";
 
 
 
 export function GamblingCard() {
   const { address } = useAccount();
+  const publicClient = usePublicClient();
+  const { data: walletClient } = useWalletClient();
+
+  // Add swap modal states
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [swapView, setSwapView] = useState<'buy' | 'alternative'>('buy');
+  
+  // Flaunch SDK states
+  const [buyAmount, setBuyAmount] = useState('0.01');
+  const [isLoading, setIsLoading] = useState(false);
+  const [transactionHash, setTransactionHash] = useState<string | null>(null);
+  const [slippagePercent, setSlippagePercent] = useState(5);
+
+  // Initialize Flaunch SDK
+  const flaunchSDK = useMemo(() => {
+    if (!publicClient || !walletClient) return null;
+    
+    return createFlaunch({
+      publicClient,
+      walletClient,
+    }) as ReadWriteFlaunchSDK;
+  }, [publicClient, walletClient]);
 
 
   const [winDifficulty, setWinDifficulty] = useState<bigint | null>(null);
@@ -372,6 +396,62 @@ export function GamblingCard() {
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  // Buy SLOT tokens with ETH using Flaunch SDK
+  const buyWithETH = useCallback(async () => {
+    if (!flaunchSDK || !address) {
+      await sendNotification({
+        title: "Error",
+        body: "Wallet not connected or SDK not ready",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setTransactionHash(null);
+
+    try {
+      const hash = await flaunchSDK.buyCoin({
+        coinAddress: CONTRACTS.ERC20_ADDRESS,
+        slippagePercent,
+        swapType: "EXACT_IN",
+        amountIn: parseEther(buyAmount),
+      });
+
+      setTransactionHash(hash);
+      
+      // Wait for confirmation
+      const receipt = await flaunchSDK.drift.waitForTransaction({ hash });
+      
+      if (receipt && receipt.status === "success") {
+        await sendNotification({
+          title: "🎉 Purchase Successful!",
+          body: `Successfully bought SLOT tokens! TX: ${hash.slice(0, 10)}...`,
+        });
+        
+        // Refresh balance
+        refetchBalance();
+        
+        // Close modal after successful purchase
+        setTimeout(() => {
+          setShowSwapModal(false);
+          setSwapView('buy');
+        }, 2000);
+      } else {
+        throw new Error("Transaction failed");
+      }
+    } catch (error) {
+      console.error("Buy failed:", error);
+      await sendNotification({
+        title: "❌ Purchase Failed",
+        body: error instanceof Error ? error.message : "Transaction failed",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [flaunchSDK, address, buyAmount, slippagePercent, sendNotification, refetchBalance, setShowSwapModal, setSwapView]);
+
+
+
   return (
     <div className="space-y-4">
       {address && (
@@ -411,7 +491,10 @@ export function GamblingCard() {
                 </p>
               </div>
             </div>
-            <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700">
+            <button 
+              onClick={() => setShowSwapModal(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700"
+            >
               GET MORE
             </button>
           </div>
@@ -549,6 +632,225 @@ export function GamblingCard() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Swap Modal */}
+      {showSwapModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 relative">
+            <button
+              onClick={() => setShowSwapModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+                         <div className="mb-4">
+               <h3 className="text-xl font-bold text-gray-900 mb-2">Get More SLOT Tokens</h3>
+               <p className="text-sm text-gray-600">Choose your preferred method to buy SLOT tokens!</p>
+             </div>
+
+             {/* Tab Navigation */}
+             <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
+               <button
+                 onClick={() => setSwapView('buy')}
+                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                   swapView === 'buy'
+                     ? 'bg-white text-blue-600 shadow-sm'
+                     : 'text-gray-600 hover:text-gray-900'
+                 }`}
+               >
+                 💰 Buy & Swap
+               </button>
+               <button
+                 onClick={() => setSwapView('alternative')}
+                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                   swapView === 'alternative'
+                     ? 'bg-white text-blue-600 shadow-sm'
+                     : 'text-gray-600 hover:text-gray-900'
+                 }`}
+               >
+                 🔄 Alternative
+               </button>
+             </div>
+
+             {/* Content based on selected view */}
+                           {swapView === 'buy' ? (
+                <div className="space-y-4">
+                  {/* Transaction Status */}
+                  {transactionHash && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-blue-600">⏳</span>
+                        <div>
+                          <p className="text-sm font-medium text-blue-800">Transaction Pending</p>
+                          <a 
+                            href={`https://basescan.org/tx/${transactionHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline"
+                          >
+                            View on BaseScan: {transactionHash.slice(0, 10)}...
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                                     {/* Amount Input */}
+                   <div className="bg-gray-50 rounded-lg p-4">
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       ETH Amount
+                     </label>
+                     <input
+                       type="number"
+                       step="0.001"
+                       min="0"
+                       value={buyAmount}
+                       onChange={(e) => setBuyAmount(e.target.value)}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       placeholder="0.01"
+                       disabled={isLoading}
+                     />
+                   </div>
+
+                  {/* Slippage Settings */}
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Slippage Tolerance: {slippagePercent}%
+                    </label>
+                    <div className="flex space-x-2">
+                      {[1, 3, 5, 10].map((percent) => (
+                        <button
+                          key={percent}
+                          onClick={() => setSlippagePercent(percent)}
+                          className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                            slippagePercent === percent
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                          }`}
+                          disabled={isLoading}
+                        >
+                          {percent}%
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                                     {/* Buy Button */}
+                   <button 
+                     onClick={buyWithETH}
+                     disabled={isLoading || !flaunchSDK || !address}
+                     className="w-full bg-blue-600 text-white p-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                     <div className="flex items-center justify-center space-x-2">
+                       {isLoading ? (
+                         <>
+                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                           <span>Processing...</span>
+                         </>
+                       ) : (
+                         <>
+                           <span>💎</span>
+                           <span>Buy SLOT with ETH</span>
+                         </>
+                       )}
+                     </div>
+                     <p className="text-xs opacity-90 mt-1">Powered by Flaunch SDK</p>
+                   </button>
+
+                  
+
+                  {/* Info about LP */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-blue-600">ℹ️</span>
+                      <div>
+                        <p className="text-sm font-medium text-blue-800">Liquidity Pool Available</p>
+                        <p className="text-xs text-blue-600">LP: 0x498581ff718922c3f8e6a244956af099b2652b2b</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+             ) : (
+               <div className="space-y-4">
+                 {/* Alternative Swaps Header */}
+                 <div className="text-center mb-4">
+                   <h4 className="text-sm font-medium text-gray-700">External DEX Options</h4>
+                   <p className="text-xs text-gray-500">Use external platforms for swapping</p>
+                 </div>
+
+                 {/* Uniswap Integration */}
+                 <div className="space-y-3">
+                   {/* ETH -> SLOT via Uniswap */}
+                   <a
+                     href={`https://app.uniswap.org/#/swap?inputCurrency=ETH&outputCurrency=${CONTRACTS.ERC20_ADDRESS}&chain=base`}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="block w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white p-4 rounded-lg text-center font-medium hover:from-pink-600 hover:to-purple-700 transition-colors"
+                     onClick={() => {
+                       setTimeout(() => refetchBalance(), 2000);
+                     }}
+                   >
+                     <div className="flex items-center justify-center space-x-2">
+                       <span>🦄</span>
+                       <span>Swap ETH → SLOT on Uniswap</span>
+                       <span>↗️</span>
+                     </div>
+                     <p className="text-xs opacity-90 mt-1">Opens Uniswap in new tab</p>
+                   </a>
+
+                   {/* USDC -> SLOT via Uniswap */}
+                   <a
+                     href={`https://app.uniswap.org/#/swap?inputCurrency=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913&outputCurrency=${CONTRACTS.ERC20_ADDRESS}&chain=base`}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="block w-full bg-gradient-to-r from-green-500 to-blue-600 text-white p-4 rounded-lg text-center font-medium hover:from-green-600 hover:to-blue-700 transition-colors"
+                     onClick={() => {
+                       setTimeout(() => refetchBalance(), 2000);
+                     }}
+                   >
+                     <div className="flex items-center justify-center space-x-2">
+                       <span>🦄</span>
+                       <span>Swap USDC → SLOT on Uniswap</span>
+                       <span>↗️</span>
+                     </div>
+                     <p className="text-xs opacity-90 mt-1">Opens Uniswap in new tab</p>
+                   </a>
+
+                   {/* DEX Screener link */}
+                   <a
+                     href={`https://dexscreener.com/base/${CONTRACTS.ERC20_ADDRESS}`}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     className="block w-full bg-gray-600 text-white p-3 rounded-lg text-center font-medium hover:bg-gray-700 transition-colors"
+                   >
+                     <div className="flex items-center justify-center space-x-2">
+                       <span>📊</span>
+                       <span>View SLOT on DexScreener</span>
+                       <span>↗️</span>
+                     </div>
+                     <p className="text-xs opacity-90 mt-1">Check prices and liquidity</p>
+                   </a>
+                 </div>
+               </div>
+             )}
+
+             {/* Close and Refresh Button */}
+             <button
+               onClick={() => {
+                 refetchBalance();
+                 setShowSwapModal(false);
+                 setSwapView('buy'); // Reset to buy view
+               }}
+               className="w-full bg-gray-600 text-white p-3 rounded-lg font-medium hover:bg-gray-700 transition-colors mt-4"
+             >
+               🔄 Refresh Balance & Close
+             </button>
+          </div>
         </div>
       )}
     </div>

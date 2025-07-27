@@ -99,6 +99,7 @@ export function GamblingCard() {
   const [lastResult, setLastResult] = useState<{
     won: boolean;
     txHash?: string;
+    claimTxHash?: string; // Add claim transaction hash
     claimed?: boolean;
   } | null>(null);
   const [transactionKey, setTransactionKey] = useState(0);
@@ -201,7 +202,8 @@ export function GamblingCard() {
           const claimTxHash = await callGamblyWinAsOwner(address);
           setLastResult({
             won: true,
-            txHash: transactionHash,
+            txHash: transactionHash,     // Gamble transaction
+            claimTxHash: claimTxHash,    // Claim transaction
             claimed: true,
           });
 
@@ -210,7 +212,7 @@ export function GamblingCard() {
 
           await sendNotification({
             title: "🎉 Congratulations! You Won!",
-            body: `You won the gamble! Prize automatically claimed! TX: ${claimTxHash.slice(0, 10)}...`,
+            body: `You won the gamble! Prize automatically claimed! View transaction: https://basescan.org/tx/${claimTxHash}`,
           });
         } catch (error) {
           console.error("Failed to automatically claim prize:", error);
@@ -222,7 +224,7 @@ export function GamblingCard() {
           });
         }
       } else {
-        setLastResult({ won: false });
+        setLastResult({ won: false, txHash: transactionHash }); // Add txHash for losing transactions too
 
         await sendNotification({
           title: "Better luck next time!",
@@ -241,7 +243,7 @@ export function GamblingCard() {
     async (error: TransactionError) => {
       console.error("ERC20 Transfer failed:", error);
       setIsSlotSpinning(false);
-      setSlotResult(null);
+      setSlotResult("lose"); // Show lose instead of null when transaction fails
       await sendNotification({
         title: "Transfer Failed",
         body: "The ERC20 transfer transaction failed. Please try again.",
@@ -264,7 +266,7 @@ export function GamblingCard() {
           </p>
           <p className="text-sm mb-3">Just, claim and thank us later :)</p>
           <div className="flex justify-between items-center">
-            <span className="text-2xl font-bold">1000 $SLOT</span>
+            <span className="text-2xl font-bold">100k $SLOT</span>
             <button
               onClick={() => setClaimedBonus(true)}
               className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-medium hover:bg-gray-300"
@@ -309,28 +311,36 @@ export function GamblingCard() {
         </div>
       </div>
 
-      {/* Machine Balance */}
+      {/* Jackpot Pool */}
       <div className="text-center">
         <div className="text-3xl font-bold text-blue-600 mb-1">
           ............. $SLOT
         </div>
-        <div className="text-sm text-gray-600 mb-4">MACHINE BALANCE</div>
+        <div className="text-sm text-gray-600 mb-4 flex items-center justify-center space-x-2">
+          <span className="animate-bounce">💰</span>
+          <span className="animate-pulse">JACKPOT POOL</span>
+          <span className="animate-bounce" style={{ animationDelay: '0.5s' }}>🎰</span>
+        </div>
 
         <div className="flex justify-between text-center">
           <div>
-            <div className="text-2xl font-bold text-blue-600">0000000</div>
+            <div className="text-2xl font-bold text-blue-600 animate-pulse">0000000</div>
             <div className="text-xs text-gray-600">
               CURRENT POOL GAMES PLAYES COUNT
             </div>
           </div>
           <div>
-            <div className="text-2xl font-bold text-blue-600">1/1000</div>
+            <div className="text-2xl font-bold text-blue-600 animate-pulse" style={{ animationDelay: '0.3s' }}>1/1000</div>
             <div className="text-xs text-gray-600">CURRENT WIN CHANCE</div>
           </div>
         </div>
       </div>
 
-      <AnimatedSlotMachine isSpinning={isSlotSpinning} result={slotResult} />
+      <AnimatedSlotMachine 
+        isSpinning={isSlotSpinning} 
+        result={slotResult} 
+        isGlobalJackpot={slotResult === 'win'} 
+      />
 
       <div className="text-center">
         {address ? (
@@ -344,7 +354,7 @@ export function GamblingCard() {
               onClick={() => {
                 if (!isSlotSpinning) {
                   setIsSlotSpinning(true);
-                  setSlotResult(null);
+                  // Don't set slotResult to null here - let it keep spinning until transaction completes
                 }
               }}
             >
@@ -389,9 +399,30 @@ export function GamblingCard() {
               : "Better luck next time!"}
           </div>
           {lastResult.txHash && (
-            <p className="text-xs text-gray-500 mt-1">
-              TX: {lastResult.txHash.slice(0, 20)}...
-            </p>
+            <div className="text-xs text-gray-500 mt-1 space-y-1">
+              <p>
+                <a 
+                  href={`https://basescan.org/tx/${lastResult.txHash}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 underline"
+                >
+                  🎲 Gamble TX: {lastResult.txHash.slice(0, 20)}...
+                </a>
+              </p>
+              {lastResult.claimTxHash && (
+                <p>
+                  <a 
+                    href={`https://basescan.org/tx/${lastResult.claimTxHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-green-600 hover:text-green-800 underline"
+                  >
+                    🎉 Prize TX: {lastResult.claimTxHash.slice(0, 20)}...
+                  </a>
+                </p>
+              )}
+            </div>
           )}
         </div>
       )}

@@ -5,13 +5,25 @@ import { useEffect, useRef, useState } from "react";
 interface AnimatedSlotMachineProps {
   isSpinning: boolean;
   result: "win" | "lose" | null;
+  isGlobalJackpot?: boolean; // New prop to indicate if this is a global jackpot win
 }
 
-export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineProps) {
+export function AnimatedSlotMachine({ isSpinning, result, isGlobalJackpot = false }: AnimatedSlotMachineProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number>();
   const [displayText, setDisplayText] = useState('BASED');
   const [ledAnimation, setLedAnimation] = useState(false);
+  const [mainRowBlink, setMainRowBlink] = useState(false);
+  
+  // Function to generate random text
+  const generateRandomText = () => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    let randomText = '';
+    for (let i = 0; i < 5; i++) {
+      randomText += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return randomText;
+  };
   
   // LED animations
   useEffect(() => {
@@ -20,6 +32,18 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
     }, 800);
     return () => clearInterval(interval);
   }, []);
+
+  // Main row blinking animation when winning
+  useEffect(() => {
+    if (result === 'win') {
+      const blinkInterval = setInterval(() => {
+        setMainRowBlink(prev => !prev);
+      }, 250); // Faster blinking for win effect
+      return () => clearInterval(blinkInterval);
+    } else {
+      setMainRowBlink(false);
+    }
+  }, [result]);
   
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -43,6 +67,7 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
     const charMap: Record<string, number> = {};
     const offset: number[] = [];
     const offsetV: number[] = [];
+    const minSpeed: number[] = []; // Array to store individual minimum speeds for each panel
 
     // Create character map
     for (let i = 0; i < charsArray.length; i++) {
@@ -54,6 +79,7 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
       const f = firstLetter + delay * i;
       offsetV[i] = endSpeed + breaks * f;
       offset[i] = -(1 + f) * (breaks * f + 2 * endSpeed) / 2;
+      minSpeed[i] = endSpeed + (breaks * delay * i * 0.5); // Each panel has its own minimum speed
     }
 
     // Resize canvas
@@ -88,53 +114,60 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
       ctx.fillStyle = gradient;
       ctx.fillRect(0, (canvas.height - scale) / 2, canvas.width, scale);
 
-      // Litery - 5 rzędów widocznych
-      for (let i = 0; i < textArray.length; i++) {
-        ctx.fillStyle = '#FFFFFF';
-        ctx.textBaseline = 'middle';
-        ctx.textAlign = 'center';
-        ctx.setTransform(
-          1, 0, 0, 1,
-          Math.floor((canvas.width - scale * (textArray.length - 1)) / 2),
-          Math.floor(canvas.height / 2)
-        );
-        
-        let o = offset[i];
-        while (o < 0) o++;
-        o %= 1;
-        
-        // Rysujemy dokładnie 5 rzędów: -2, -1, 0 (główny), 1, 2
-        for (let j = -2; j <= 2; j++) {
-          let c = charMap[textArray[i]] + j - Math.floor(offset[i]);
-          while (c < 0) c += charsArray.length;
-          c %= charsArray.length;
-          
-          // Alpha fading - główny rząd (j+o≈0) ma alpha=1, inne mniejsze
-          const distance = Math.abs(j + o);
-          let s;
-          if (distance < 0.1) {
-            s = 1; // Główny rząd - pełna przezroczystość
-          } else if (distance < 1) {
-            s = 0.7; // Sąsiednie rzędy
-          } else {
-            s = 0.4; // Skrajne rzędy
-          }
-          
-          ctx.globalAlpha = s;
-          ctx.font = scale * s + 'px "Pixelify Sans", cursive, sans-serif';
-          ctx.fillText(charsArray[c], scale * i, (j + o) * scale);
-        }
-        
-        // Aktualizacja offsets tylko gdy spinning
-        if (isSpinning) {
-          offset[i] += offsetV[i];
-          offsetV[i] -= breaks;
-          if (offsetV[i] < endSpeed) {
-            offset[i] = 0;
-            offsetV[i] = 0;
-          }
-        }
-      }
+         // Litery - 5 rzędów widocznych
+         for (let i = 0; i < textArray.length; i++) {
+           ctx.textBaseline = 'middle';
+           ctx.textAlign = 'center';
+           ctx.setTransform(
+             1, 0, 0, 1,
+             Math.floor((canvas.width - scale * (textArray.length - 1)) / 2),
+             Math.floor(canvas.height / 2)
+           );
+           
+           let o = offset[i];
+           while (o < 0) o++;
+           o %= 1;
+           
+           // Rysujemy dokładnie 5 rzędów: -2, -1, 0 (główny), 1, 2
+           for (let j = -2; j <= 2; j++) {
+             let c = charMap[textArray[i]] + j - Math.floor(offset[i]);
+             while (c < 0) c += charsArray.length;
+             c %= charsArray.length;
+             
+             // Alpha fading - główny rząd (j+o≈0) ma alpha=1, inne mniejsze
+             const distance = Math.abs(j + o);
+             let s;
+             if (distance < 0.1) {
+               s = 1; // Główny rząd - pełna przezroczystość
+               // Set blinking color for main row when winning
+               if (result === 'win') {
+                 ctx.fillStyle = mainRowBlink ? '#FFFFFF' : '#3B82F6';
+               } else {
+                 ctx.fillStyle = '#FFFFFF';
+               }
+             } else if (distance < 1) {
+               s = 0.7; // Sąsiednie rzędy
+               ctx.fillStyle = '#FFFFFF';
+             } else {
+               s = 0.4; // Skrajne rzędy
+               ctx.fillStyle = '#FFFFFF';
+             }
+             
+             ctx.globalAlpha = s;
+             ctx.font = scale * s + 'px "Pixelify Sans", cursive, sans-serif';
+             ctx.fillText(charsArray[c], scale * i, (j + o) * scale);
+           }
+           
+           // Aktualizacja offsets tylko gdy spinning
+           if (isSpinning) {
+             offset[i] += offsetV[i];
+             offsetV[i] -= breaks;
+             // Keep spinning indefinitely with individual minimum speeds for each panel
+             if (offsetV[i] < minSpeed[i]) {
+               offsetV[i] = minSpeed[i]; // Each panel maintains its own unique minimum speed
+             }
+           }
+         }
       
       if (isSpinning) {
         animationRef.current = requestAnimationFrame(loop);
@@ -152,7 +185,6 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
         ctx.fillRect(0, (canvas.height - scale) / 2, canvas.width, scale);
         
         // Finalne litery - pokazuj wszystkie 5 rzędów
-        ctx.fillStyle = '#FFFFFF';
         ctx.textBaseline = 'middle';
         ctx.textAlign = 'center';
         
@@ -171,12 +203,20 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
             if (j === 0) {
               alpha = 1;
               fontSize = scale;
+              // Set blinking color for main row when winning (even when not spinning)
+              if (result === 'win') {
+                ctx.fillStyle = mainRowBlink ? '#FFFFFF' : '#3B82F6';
+              } else {
+                ctx.fillStyle = '#FFFFFF';
+              }
             } else if (Math.abs(j) === 1) {
               alpha = 0.7;
               fontSize = scale * 0.7;
+              ctx.fillStyle = '#FFFFFF';
             } else {
               alpha = 0.4;
               fontSize = scale * 0.4;
+              ctx.fillStyle = '#FFFFFF';
             }
             
             ctx.globalAlpha = alpha;
@@ -195,23 +235,23 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [isSpinning, result, displayText]);
+  }, [isSpinning, result, displayText, mainRowBlink]);
 
   // Update text based on result
   useEffect(() => {
     if (result === 'win') {
-      setDisplayText('BASED');
+      setDisplayText('BASED'); // Show BASED for ANY win
     } else if (result === 'lose') {
-      setDisplayText('BASED');
-    } else {
-      setDisplayText('BASED');
+      setDisplayText(generateRandomText()); // Show random letters when losing
+    } else if (result === null) {
+      setDisplayText('BASED'); // Show BASED at the beginning
     }
-  }, [result]);
+  }, [result, isGlobalJackpot]);
 
   return (
     <div className="w-full max-w-md mx-auto">
-             {/* Casino Frame */}
-       <div className="relative bg-gradient-to-b from-blue-600 via-blue-500 to-blue-700 rounded-xl p-4 shadow-xl border-2 border-blue-400">
+      {/* Casino Frame */}
+      <div className="relative bg-gradient-to-b from-blue-600 via-blue-500 to-blue-700 rounded-xl p-4 shadow-xl border-2 border-blue-400">
 
         {/* Side Elements */}
         <div className="flex items-center gap-3">
@@ -259,18 +299,18 @@ export function AnimatedSlotMachine({ isSpinning, result }: AnimatedSlotMachineP
                 }}
               />
               
-              {/* Win Celebration Overlay */}
-              {result === 'win' && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
-                  <div className="bg-black bg-opacity-50 rounded-lg px-4 py-2">
-                    <div className="text-yellow-300 font-bold text-xl animate-pulse flex items-center space-x-2">
-                      <span className="animate-bounce">🎉</span>
-                      <span>JACKPOT!</span>
-                      <span className="animate-bounce">🎉</span>
-                    </div>
-                  </div>
-                </div>
-              )}
+               {/* Win Celebration Overlay - moved to bottom */}
+               {result === 'win' && (
+                 <div className="absolute bottom-2 left-0 right-0 pointer-events-none flex items-center justify-center z-20">
+                   <div className="bg-black bg-opacity-70 rounded-lg px-3 py-1">
+                     <div className="text-yellow-300 font-bold text-lg animate-pulse flex items-center space-x-1">
+                       <span className="animate-bounce text-sm">🎉</span>
+                       <span className="text-sm">JACKPOT!</span>
+                       <span className="animate-bounce text-sm">🎉</span>
+                     </div>
+                   </div>
+                 </div>
+               )}
             </div>
           </div>
 

@@ -129,10 +129,38 @@ export default function App() {
                 </button>
               </div>
               <div className="text-center">
-                <p className="text-gray-600 mb-4 font-mono">GAMBLING PAPER</p>
-                <div className="text-sm text-gray-500 font-mono">
-                  Connect your wallet, set amount, and gamble to win $SLOT
-                  tokens!
+                <p className="text-gray-600 mb-4 font-mono">
+                  🎰 GAMBLY PAPER 🎰
+                </p>
+                <div className="text-sm text-gray-500 font-mono space-y-3 text-left">
+                  <p>
+                    🔥 <strong>GLOBAL POOL:</strong> Every spin adds 10k $SLOT
+                    to the jackpot! One winner takes ALL!
+                  </p>
+
+                  <p>
+                    ⚡ <strong>WINNER TAKES ALL:</strong> When you win, you get
+                    the ENTIRE pool! No fixed prizes - pure degen action!
+                  </p>
+
+                  <p>
+                    🎯 <strong>CHANCE:</strong> Every spin has the same odds.
+                    The more people spin, the bigger the prize!
+                  </p>
+
+                  <p>
+                    🎁 <strong>WELCOME BONUS:</strong> New degens get 100k $SLOT
+                    free to start spinning!
+                  </p>
+
+                  <p>
+                    🔗 <strong>CONTRACTS:</strong>
+                  </p>
+                  <div className="text-xs bg-gray-100 p-2 rounded font-mono">
+                    <p>$SLOT: 0xbb97f8257cd4ba47ae5c979afcf12eb19d1723e8</p>
+                    <p>GAMBLE: 0x7d0CF0F993568c38061942f8Eaaa3B2ec084441B</p>
+                    <p>CLAIM: 0xeaded0048371ecc5f93c8cdba0a9c1f147cac695</p>
+                  </div>
                 </div>
               </div>
             </div>

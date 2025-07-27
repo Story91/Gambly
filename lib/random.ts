@@ -1,4 +1,4 @@
-import { keccak256, toHex } from 'viem';
+import { keccak256, toHex } from "viem";
 
 /**
  * Generate a random number using keccak256 hash
@@ -8,8 +8,10 @@ import { keccak256, toHex } from 'viem';
 export function generateRandomNumber(seed?: string): bigint {
   const timestamp = Date.now().toString();
   const randomData = Math.random().toString();
-  const inputData = seed ? `${seed}-${timestamp}-${randomData}` : `${timestamp}-${randomData}`;
-  
+  const inputData = seed
+    ? `${seed}-${timestamp}-${randomData}`
+    : `${timestamp}-${randomData}`;
+
   const hash = keccak256(toHex(inputData));
   return BigInt(hash);
 }
@@ -22,14 +24,14 @@ export function generateRandomNumber(seed?: string): bigint {
  */
 export function checkWin(winDifficulty: bigint, seed?: string): boolean {
   if (winDifficulty === BigInt(0)) return false;
-  
+
   const randomNum = generateRandomNumber(seed);
   const result = randomNum % winDifficulty;
-  
-  console.log('Random number:', randomNum.toString());
-  console.log('Win difficulty:', winDifficulty.toString());
-  console.log('Modulo result:', result.toString());
-  console.log('Win:', result === BigInt(0));
-  
+
+  console.log("Random number:", randomNum.toString());
+  console.log("Win difficulty:", winDifficulty.toString());
+  console.log("Modulo result:", result.toString());
+  console.log("Win:", result === BigInt(0));
+
   return result === BigInt(0);
-} 
+}

@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  useMiniKit,
-  useAddFrame,
-  useOpenUrl,
-} from "@coinbase/onchainkit/minikit";
+import { useMiniKit, useAddFrame } from "@coinbase/onchainkit/minikit";
 import {
   Name,
   Identity,
@@ -19,19 +15,15 @@ import {
   WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Button } from "./components/DemoComponents";
-import { Icon } from "./components/DemoComponents";
-import { Home } from "./components/DemoComponents";
-import { Features } from "./components/DemoComponents";
+
 import { GamblingCard } from "./components/GamblingCard";
+import { Button, Icon } from "./components/DemoComponents";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
   const [frameAdded, setFrameAdded] = useState(false);
-  const [activeTab, setActiveTab] = useState("home");
 
   const addFrame = useAddFrame();
-  const openUrl = useOpenUrl();
 
   useEffect(() => {
     if (!isFrameReady) {
@@ -97,25 +89,10 @@ export default function App() {
         </header>
 
         <main className="flex-1">
-          {activeTab === "home" && (
-            <div className="space-y-6 animate-fade-in">
-              <GamblingCard />
-              <Home setActiveTab={setActiveTab} />
-            </div>
-          )}
-          {activeTab === "features" && <Features setActiveTab={setActiveTab} />}
+          <GamblingCard />
         </main>
 
-        <footer className="mt-2 pt-4 flex justify-center">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-[var(--ock-text-foreground-muted)] text-xs"
-            onClick={() => openUrl("https://base.org/builders/minikit")}
-          >
-            Built on Base with MiniKit
-          </Button>
-        </footer>
+        <footer className="mt-2 pt-4 flex justify-center"></footer>
       </div>
     </div>
   );

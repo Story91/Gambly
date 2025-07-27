@@ -1,21 +1,6 @@
 "use client";
 
-import { type ReactNode, useCallback, useMemo, useState } from "react";
-import { useAccount } from "wagmi";
-import {
-  Transaction,
-  TransactionButton,
-  TransactionToast,
-  TransactionToastAction,
-  TransactionToastIcon,
-  TransactionToastLabel,
-  TransactionError,
-  TransactionResponse,
-  TransactionStatusAction,
-  TransactionStatusLabel,
-  TransactionStatus,
-} from "@coinbase/onchainkit/transaction";
-import { useNotification } from "@coinbase/onchainkit/minikit";
+import { type ReactNode, useState } from "react";
 
 type ButtonProps = {
   children: ReactNode;
@@ -26,7 +11,7 @@ type ButtonProps = {
   disabled?: boolean;
   type?: "button" | "submit" | "reset";
   icon?: ReactNode;
-}
+};
 
 export function Button({
   children,
@@ -76,14 +61,9 @@ type CardProps = {
   children: ReactNode;
   className?: string;
   onClick?: () => void;
-}
+};
 
-function Card({
-  title,
-  children,
-  className = "",
-  onClick,
-}: CardProps) {
+function Card({ title, children, className = "", onClick }: CardProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (onClick && (e.key === "Enter" || e.key === " ")) {
       e.preventDefault();
@@ -162,7 +142,8 @@ export function Home({ setActiveTab }: HomeProps) {
     <div className="space-y-6 animate-fade-in">
       <Card title="Welcome to Gambly">
         <p className="text-[var(--app-foreground-muted)] mb-4">
-          A decentralized gambling application built with OnchainKit. Test your luck by transferring ERC20 tokens!
+          A decentralized gambling application built with OnchainKit. Test your
+          luck by transferring ERC20 tokens!
         </p>
         <Button
           onClick={() => setActiveTab("features")}
@@ -181,7 +162,7 @@ type IconProps = {
   name: "heart" | "star" | "check" | "plus" | "arrow-right";
   size?: "sm" | "md" | "lg";
   className?: string;
-}
+};
 
 export function Icon({ name, size = "md", className = "" }: IconProps) {
   const sizeClasses = {
@@ -281,7 +262,7 @@ type Todo = {
   id: number;
   text: string;
   completed: boolean;
-}
+};
 
 function TodoList() {
   const [todos, setTodos] = useState<Todo[]>([
@@ -379,81 +360,6 @@ function TodoList() {
             </li>
           ))}
         </ul>
-      </div>
-    </Card>
-  );
-}
-
-
-function TransactionCard() {
-  const { address } = useAccount();
-
-  // Example transaction call - sending 0 ETH to self
-  const calls = useMemo(() => address
-    ? [
-        {
-          to: address,
-          data: "0x" as `0x${string}`,
-          value: BigInt(0),
-        },
-      ]
-    : [], [address]);
-
-  const sendNotification = useNotification();
-
-  const handleSuccess = useCallback(async (response: TransactionResponse) => {
-    const transactionHash = response.transactionReceipts[0].transactionHash;
-
-    console.log(`Transaction successful: ${transactionHash}`);
-
-    await sendNotification({
-      title: "Congratulations!",
-      body: `You sent your a transaction, ${transactionHash}!`,
-    });
-  }, [sendNotification]);
-
-  return (
-    <Card title="Make Your First Transaction">
-      <div className="space-y-4">
-        <p className="text-[var(--app-foreground-muted)] mb-4">
-          Experience the power of seamless sponsored transactions with{" "}
-          <a
-            href="https://onchainkit.xyz"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[#0052FF] hover:underline"
-          >
-            OnchainKit
-          </a>
-          .
-        </p>
-
-        <div className="flex flex-col items-center">
-          {address ? (
-            <Transaction
-              calls={calls}
-              onSuccess={handleSuccess}
-              onError={(error: TransactionError) =>
-                console.error("Transaction failed:", error)
-              }
-            >
-              <TransactionButton className="text-white text-md" />
-              <TransactionStatus>
-                <TransactionStatusAction />
-                <TransactionStatusLabel />
-              </TransactionStatus>
-              <TransactionToast className="mb-4">
-                <TransactionToastIcon />
-                <TransactionToastLabel />
-                <TransactionToastAction />
-              </TransactionToast>
-            </Transaction>
-          ) : (
-            <p className="text-yellow-400 text-sm text-center mt-2">
-              Connect your wallet to send a transaction
-            </p>
-          )}
-        </div>
       </div>
     </Card>
   );

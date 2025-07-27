@@ -17,8 +17,12 @@ import {
 } from "@coinbase/onchainkit/transaction";
 import { useNotification } from "@coinbase/onchainkit/minikit";
 import { Button, Icon } from "./DemoComponents";
-import { CONTRACTS, ERC20_ABI, GAMBLING_CONTRACT_ABI } from "../../lib/contracts";
-import { getWinDifficulty, createGamblyWinCall } from "../../lib/gambling-service";
+import { SlotMachine } from "./SlotMachine";
+import { CONTRACTS, ERC20_ABI } from "../../lib/contracts";
+import {
+  getWinDifficulty,
+  callGamblyWinAsOwner,
+} from "../../lib/gambling-service";
 import { checkWin } from "../../lib/random";
 import { encodeFunctionData, parseEther } from "viem";
 
@@ -47,25 +51,33 @@ function Card({ title, children, className = "" }: CardProps) {
 
 export function GamblingCard() {
   const { address } = useAccount();
-  const [isLoading, setIsLoading] = useState(false);
   const [winDifficulty, setWinDifficulty] = useState<bigint | null>(null);
-  const [lastResult, setLastResult] = useState<{ won: boolean; txHash?: string; claimed?: boolean } | null>(null);
-  const [transferAmount, setTransferAmount] = useState("0.001"); // Amount in ETH/tokens to transfer
-  
+  const [lastResult, setLastResult] = useState<{
+    won: boolean;
+    txHash?: string;
+    claimed?: boolean;
+  } | null>(null);
+  const [transferAmount, setTransferAmount] = useState("100");
+  const [transactionKey, setTransactionKey] = useState(0);
+
+  // Slot machine states
+  const [isSlotSpinning, setIsSlotSpinning] = useState(false);
+  const [slotResult, setSlotResult] = useState<"win" | "lose" | null>(null);
+
   const sendNotification = useNotification();
 
   // ERC20 transfer transaction call
   const transferCalls = useMemo(() => {
     if (!address || !transferAmount) return [];
-    
+
     const amount = parseEther(transferAmount);
-    
+
     return [
       {
         to: CONTRACTS.ERC20_ADDRESS,
         data: encodeFunctionData({
           abi: ERC20_ABI,
-          functionName: 'transfer',
+          functionName: "transfer",
           args: [CONTRACTS.GAMBLING_ADDRESS, amount],
         }),
         value: BigInt(0),
@@ -73,113 +85,108 @@ export function GamblingCard() {
     ];
   }, [address, transferAmount]);
 
-  // Claim win transaction call
-  const claimCalls = useMemo(() => {
-    if (!address || !lastResult?.won || lastResult.claimed) return [];
-    
-    return [createGamblyWinCall(address)];
-  }, [address, lastResult]);
-
   // Load win difficulty from contract
   const loadWinDifficulty = useCallback(async () => {
     try {
-      setIsLoading(true);
       const difficulty = await getWinDifficulty();
       setWinDifficulty(difficulty);
-      console.log('Loaded win difficulty:', difficulty.toString());
+      console.log("Loaded win difficulty:", difficulty.toString());
     } catch (error) {
-      console.error('Failed to load win difficulty:', error);
+      console.error("Failed to load win difficulty:", error);
       await sendNotification({
         title: "Error",
         body: "Failed to load win difficulty from contract",
       });
-    } finally {
-      setIsLoading(false);
     }
   }, [sendNotification]);
 
   // Handle successful ERC20 transfer
-  const handleTransferSuccess = useCallback(async (response: TransactionResponse) => {
-    const transactionHash = response.transactionReceipts[0].transactionHash;
-    console.log(`ERC20 Transfer successful: ${transactionHash}`);
+  const handleTransferSuccess = useCallback(
+    async (response: TransactionResponse) => {
+      const transactionHash = response.transactionReceipts[0].transactionHash;
+      console.log(`ERC20 Transfer successful: ${transactionHash}`);
 
-    try {
-      setIsLoading(true);
-      
       // Get win difficulty if not loaded
       let currentWinDifficulty = winDifficulty;
       if (!currentWinDifficulty) {
-        currentWinDifficulty = await getWinDifficulty();
-        setWinDifficulty(currentWinDifficulty);
+        try {
+          currentWinDifficulty = await getWinDifficulty();
+          setWinDifficulty(currentWinDifficulty);
+        } catch (error) {
+          console.error("Failed to load win difficulty:", error);
+        }
       }
 
-      // Check if user wins
-      const userWins = checkWin(currentWinDifficulty, transactionHash);
-      
+      // Check if user wins (only if we have win difficulty)
+      const userWins = currentWinDifficulty
+        ? checkWin(currentWinDifficulty, transactionHash)
+        : false;
+
+      // Set slot result and stop spinning
+      setSlotResult(userWins ? "win" : "lose");
+      setIsSlotSpinning(false);
+
       if (userWins && address) {
-        setLastResult({ won: true, txHash: transactionHash });
-        
-        await sendNotification({
-          title: "🎉 Congratulations! You Won!",
-          body: `You won the gamble! Now claim your prize!`,
-        });
+        try {
+          // Automatically call gamblyWin as contract owner
+          const claimTxHash = await callGamblyWinAsOwner(address);
+          setLastResult({
+            won: true,
+            txHash: transactionHash,
+            claimed: true,
+          });
+
+          await sendNotification({
+            title: "🎉 Congratulations! You Won!",
+            body: `You won the gamble! Prize automatically claimed! TX: ${claimTxHash.slice(0, 10)}...`,
+          });
+        } catch (error) {
+          console.error("Failed to automatically claim prize:", error);
+          setLastResult({ won: true, txHash: transactionHash });
+
+          await sendNotification({
+            title: "🎉 Congratulations! You Won!",
+            body: `You won the gamble! Prize claim failed. Please try again.`,
+          });
+        }
       } else {
         setLastResult({ won: false });
-        
+
         await sendNotification({
           title: "Better luck next time!",
           body: `Transfer completed but you didn't win this round. Try again!`,
         });
       }
-    } catch (error) {
-      console.error('Error in post-transfer logic:', error);
-      await sendNotification({
-        title: "Transfer Complete",
-        body: "Transfer successful but couldn't check win status.",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [winDifficulty, address, sendNotification]);
+
+      // Reset transaction component to show gamble button again
+      setTransactionKey((prev) => prev + 1);
+    },
+    [winDifficulty, address, sendNotification],
+  );
 
   // Handle transaction error
-  const handleTransferError = useCallback(async (error: TransactionError) => {
-    console.error("ERC20 Transfer failed:", error);
-    await sendNotification({
-      title: "Transfer Failed",
-      body: "The ERC20 transfer transaction failed. Please try again.",
-    });
-  }, [sendNotification]);
-
-  // Handle successful claim
-  const handleClaimSuccess = useCallback(async (response: TransactionResponse) => {
-    const transactionHash = response.transactionReceipts[0].transactionHash;
-    console.log(`Claim successful: ${transactionHash}`);
-
-    setLastResult(prev => prev ? { ...prev, claimed: true, txHash: transactionHash } : null);
-    
-    await sendNotification({
-      title: "🎉 Prize Claimed!",
-      body: `Successfully claimed your winnings! TX: ${transactionHash.slice(0, 10)}...`,
-    });
-  }, [sendNotification]);
-
-  // Handle claim error
-  const handleClaimError = useCallback(async (error: TransactionError) => {
-    console.error("Claim failed:", error);
-    await sendNotification({
-      title: "Claim Failed",
-      body: "Failed to claim your prize. Please try again.",
-    });
-  }, [sendNotification]);
+  const handleTransferError = useCallback(
+    async (error: TransactionError) => {
+      console.error("ERC20 Transfer failed:", error);
+      setIsSlotSpinning(false);
+      setSlotResult(null);
+      await sendNotification({
+        title: "Transfer Failed",
+        body: "The ERC20 transfer transaction failed. Please try again.",
+      });
+    },
+    [sendNotification],
+  );
 
   return (
-    <Card title="🎲 Gambly - Test Your Luck!">
-      <div className="space-y-4">
-        <p className="text-[var(--app-foreground-muted)] text-sm">
-          Transfer ERC20 tokens to the gambling contract and test your luck! 
-          If the random number modulo win difficulty equals 0, you win!
-        </p>
+    <Card title="🎰 Gambly Slot Machine!">
+      <div className="space-y-6">
+        {/* Slot Machine */}
+        <SlotMachine
+          isSpinning={isSlotSpinning}
+          result={slotResult}
+          onSpinComplete={() => {}}
+        />
 
         {/* Win Difficulty Display */}
         <div className="flex items-center justify-between p-3 bg-[var(--app-gray)] rounded-lg">
@@ -190,13 +197,14 @@ export function GamblingCard() {
                 {winDifficulty.toString()}
               </span>
             ) : (
-              <span className="text-[var(--app-foreground-muted)]">Not loaded</span>
+              <span className="text-[var(--app-foreground-muted)]">
+                Not loaded
+              </span>
             )}
             <Button
               variant="ghost"
               size="sm"
               onClick={loadWinDifficulty}
-              disabled={isLoading}
               icon={<Icon name="arrow-right" size="sm" />}
             >
               Load
@@ -218,67 +226,81 @@ export function GamblingCard() {
             className="flex-1 px-3 py-2 bg-[var(--app-card-bg)] border border-[var(--app-card-border)] rounded-lg text-[var(--app-foreground)] placeholder-[var(--app-foreground-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--app-accent)]"
             placeholder="0.001"
           />
-          <span className="text-sm text-[var(--app-foreground-muted)]">ETH</span>
+          <span className="text-sm text-[var(--app-foreground-muted)]">
+            ETH
+          </span>
         </div>
 
-                 {/* Last Result */}
+        {/* Last Result */}
         {lastResult && (
-          <div className={`p-3 rounded-lg ${
-            lastResult.won 
-              ? 'bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700' 
-              : 'bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700'
-          }`}>
+          <div
+            className={`p-3 rounded-lg ${
+              lastResult.won
+                ? "bg-green-100 dark:bg-green-900/20 border border-green-300 dark:border-green-700"
+                : "bg-red-100 dark:bg-red-900/20 border border-red-300 dark:border-red-700"
+            }`}
+          >
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
-                <Icon 
-                  name={lastResult.won ? "check" : "heart"} 
-                  className={lastResult.won ? "text-green-600" : "text-red-600"} 
+                <Icon
+                  name={lastResult.won ? "check" : "heart"}
+                  className={lastResult.won ? "text-green-600" : "text-red-600"}
                 />
-                <span className={`text-sm font-medium ${
-                  lastResult.won ? "text-green-800 dark:text-green-200" : "text-red-800 dark:text-red-200"
-                }`}>
-                  {lastResult.won ? 
-                    (lastResult.claimed ? "🎉 Prize Claimed!" : "🎉 You Won!") : 
-                    "Better luck next time!"
-                  }
+                <span
+                  className={`text-sm font-medium ${
+                    lastResult.won
+                      ? "text-green-800 dark:text-green-200"
+                      : "text-red-800 dark:text-red-200"
+                  }`}
+                >
+                  {lastResult.won
+                    ? lastResult.claimed
+                      ? "🎉 Prize Claimed!"
+                      : "🎉 You Won!"
+                    : "Better luck next time!"}
                 </span>
               </div>
-              
-              {/* Claim Button */}
+
               {lastResult.won && !lastResult.claimed && (
-                <Transaction
-                  calls={claimCalls}
-                  onSuccess={handleClaimSuccess}
-                  onError={handleClaimError}
-                >
-                  <TransactionButton 
-                    className="text-white text-xs px-3 py-1" 
-                    text="Claim Prize" 
-                  />
-                </Transaction>
+                <span className="text-xs text-yellow-600">
+                  Claiming prize...
+                </span>
               )}
             </div>
             {lastResult.txHash && (
               <p className="text-xs text-[var(--app-foreground-muted)] mt-1">
-                {lastResult.claimed ? "Claim" : "Win"} TX: {lastResult.txHash.slice(0, 20)}...
+                {lastResult.claimed ? "Claim" : "Win"} TX:{" "}
+                {lastResult.txHash.slice(0, 20)}...
               </p>
             )}
           </div>
         )}
 
-        {/* Transaction Button */}
         <div className="flex flex-col items-center">
           {address ? (
             <Transaction
+              key={transactionKey}
               calls={transferCalls}
               onSuccess={handleTransferSuccess}
               onError={handleTransferError}
             >
-              <TransactionButton 
-                className="text-white text-md w-full" 
-                disabled={isLoading || !transferAmount || Number(transferAmount) <= 0}
-                text={isLoading ? "Processing..." : "🎲 Gamble!"}
-              />
+              <div
+                onClick={() => {
+                  if (!isSlotSpinning) {
+                    setIsSlotSpinning(true);
+                    setSlotResult(null);
+                  }
+                }}
+              >
+                <TransactionButton
+                  className="text-white text-md w-full"
+                  disabled={!transferAmount || Number(transferAmount) <= 0}
+                  text="🎰 SPIN THE SLOTS! 🎰"
+                  pendingOverride={{
+                    text: "🎰 SPINNING... 🎰",
+                  }}
+                />
+              </div>
               <TransactionStatus>
                 <TransactionStatusAction />
                 <TransactionStatusLabel />
@@ -296,13 +318,14 @@ export function GamblingCard() {
           )}
         </div>
 
-        {/* Info */}
         <div className="text-xs text-[var(--app-foreground-muted)] space-y-1">
           <p>• ERC20 Contract: {CONTRACTS.ERC20_ADDRESS.slice(0, 10)}...</p>
-          <p>• Gambling Contract: {CONTRACTS.GAMBLING_ADDRESS.slice(0, 10)}...</p>
+          <p>
+            • Gambling Contract: {CONTRACTS.GAMBLING_ADDRESS.slice(0, 10)}...
+          </p>
           <p>• Win condition: random % win_difficulty === 0</p>
         </div>
       </div>
     </Card>
   );
-} 
+}

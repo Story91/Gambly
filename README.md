@@ -56,6 +56,15 @@ NEXT_PUBLIC_APP_OG_IMAGE=
 # Redis config
 REDIS_URL=
 REDIS_TOKEN=
+
+# Gambling Contract Configuration
+NEXT_PUBLIC_ERC20_CONTRACT_ADDRESS=0xdc490BD9459a8B6Ea957e578f5Ccd97e01EF5Cb4
+NEXT_PUBLIC_GAMBLING_CONTRACT_ADDRESS=0x875341847cb0cacb2fbfab553b111352d92c033b
+
+# Private key of the gambling contract owner (without 0x prefix)
+# This is used to automatically call gamblyWin function when users win
+# ⚠️ Never share or commit your PRIVATE_KEY!
+PRIVATE_KEY=your_private_key_here_without_0x_prefix
 ```
 
 3. Start the development server:
@@ -86,6 +95,21 @@ The app is wrapped with `MiniKitProvider` in `providers.tsx`, configured with:
 - Sets up Wagmi Connectors
 - Sets up Frame SDK listeners
 - Applies Safe Area Insets
+
+## Gambling Features
+
+### Automatic Win Claiming
+When a user wins the gamble (random number modulo win difficulty equals 0), the system automatically:
+1. Calls the `gamblyWin` function as the contract owner using the PRIVATE_KEY
+2. Passes the user's wallet address as the recipient parameter
+3. Shows a success notification with the claim transaction hash
+4. No manual claim button is shown - the process is fully automated
+
+### Environment Setup
+Make sure to set up your `.env` file with the required variables:
+- `PRIVATE_KEY`: The private key of the contract owner (without 0x prefix)
+- `NEXT_PUBLIC_ERC20_CONTRACT_ADDRESS`: The ERC20 token contract address
+- `NEXT_PUBLIC_GAMBLING_CONTRACT_ADDRESS`: The gambling contract address
 
 ## Customization
 

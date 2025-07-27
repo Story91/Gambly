@@ -1,0 +1,1 @@
+find . -type f -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" | head -20 

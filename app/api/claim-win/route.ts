@@ -4,12 +4,6 @@ import { base } from "viem/chains";
 import { privateKeyToAccount } from "viem/accounts";
 import { CONTRACTS, GAMBLING_CONTRACT_ABI } from "../../../lib/contracts";
 
-// Create a public client for reading contract data
-const publicClient = createPublicClient({
-  chain: base,
-  transport: http(),
-});
-
 // Create a wallet client for sending transactions as the contract owner
 const createOwnerWalletClient = () => {
   console.log("Checking for PRIVATE_KEY...");

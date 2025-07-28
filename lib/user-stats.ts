@@ -377,4 +377,24 @@ export async function getLeaderboard(
   }
 } 
 
+export async function getAllUserStats(): Promise<UserStats[]> {
+  if (!redis) {
+    return [];
+  }
+
+  try {
+    const keys = await redis.keys('user:*:stats');
+    const statsPromises = keys.map(key => {
+      const address = key.split(':')[1];
+      return getUserStats(address);
+    });
+
+    const allStats = await Promise.all(statsPromises);
+    return allStats.filter(stats => stats.wins > 0); 
+  } catch (error) {
+    console.error("Error getting all user stats:", error);
+    return [];
+  }
+}
+
  

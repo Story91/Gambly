@@ -98,12 +98,12 @@ export default function App() {
               <ConnectWallet className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 font-mono border-2 border-blue-800 shadow-md">
                 {isConnected && address ? (
                   <div className="flex items-center gap-2">
-                    <Avatar 
+                    <Avatar
                       className="w-4 h-4 rounded-full flex-shrink-0"
                       address={address as `0x${string}`}
                       chain={base}
                     />
-                    <Name 
+                    <Name
                       className="text-xs font-bold truncate"
                       address={address as `0x${string}`}
                       chain={base}
@@ -172,7 +172,11 @@ export default function App() {
                     🎁 <strong>WELCOME BONUS:</strong> New degens get 100k $SLOT
                     free to start spinning!
                   </p>
-
+                  <p>
+                    🎲 <strong>RANDOMNESS:</strong> Each spin uses your
+                    transaction hash as a seed for keccak256 hashing. The result
+                    modulo the win difficulty determines if you win.
+                  </p>
                   <p>
                     🔗 <strong>CONTRACTS:</strong>
                   </p>

@@ -311,6 +311,12 @@ export function GamblingCard() {
 
           // Update user stats for win
           try {
+            const jackpot = parseFloat(
+              formatUnits(jackpotBalance as bigint, 18),
+            );
+            const fee = jackpot * 0.05;
+            const netJackpot = jackpot - fee;
+
             const statsResponse = await fetch("/api/user-stats", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -318,9 +324,7 @@ export function GamblingCard() {
                 address,
                 action: "update",
                 isWin: true,
-                tokensWon: String(
-                  parseFloat(formatUnits(jackpotBalance as bigint, 18)),
-                ),
+                tokensWon: String(netJackpot),
               }),
             });
             if (statsResponse.ok) {

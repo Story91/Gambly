@@ -35,7 +35,7 @@ export function GamblingCard() {
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
-  const { signTypedData, data: signature, status: sigStatus, error: sigError } = useSignTypedData();
+  const { signTypedData, data: signature, status: sigStatus } = useSignTypedData();
 
   // Add swap modal states
   const [showSwapModal, setShowSwapModal] = useState(false);
@@ -790,13 +790,10 @@ export function GamblingCard() {
                </button>
                <button
                  onClick={() => setSwapView('sell')}
-                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                   swapView === 'sell'
-                     ? 'bg-white text-blue-600 shadow-sm'
-                     : 'text-gray-600 hover:text-gray-900'
-                 }`}
+                 disabled={true}
+                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors opacity-50 cursor-not-allowed bg-gray-200 text-gray-400`}
                >
-                 💸 Sell
+                 💸 Sell (Soon)
                </button>
                <button
                  onClick={() => setSwapView('alternative')}
@@ -896,6 +893,34 @@ export function GamblingCard() {
                    </button>
 
                   
+
+                  {/* Token Metadata */}
+                  {coinMetadata && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex items-center space-x-3">
+                        {coinMetadata.image && (
+                          <img 
+                            src={coinMetadata.image} 
+                            alt={coinMetadata.symbol}
+                            className="w-10 h-10 rounded-full border-2 border-green-300"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        )}
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-green-600">🎰</span>
+                            <p className="text-sm font-medium text-green-800">
+                              {coinMetadata.name}
+                            </p>
+                          </div>
+                          <p className="text-xs text-green-600">Symbol: {coinMetadata.symbol}</p>
+                          <p className="text-xs text-green-500">Gambly Slot Utility Token</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Info about LP */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">

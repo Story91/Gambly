@@ -184,7 +184,8 @@ async function updateLeaderboards(
   address: string, 
   wins: number, 
   spins: number, 
-  totalWon: number
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _totalWon: number
 ): Promise<void> {
   if (!redis) return;
 
@@ -315,7 +316,8 @@ export async function getLeaderboard(
     // Process players in pairs (member, score)
     for (let i = 0; i < topPlayers.length; i += 2) {
       const address = topPlayers[i] as string;
-      const stableScore = topPlayers[i + 1] as number;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const _stableScore = topPlayers[i + 1] as number;
       
       if (!address) continue;
       

@@ -120,6 +120,7 @@ export function Leaderboard() {
     const interval = setInterval(() => fetchLeaderboard(currentPage * 10), 30000);
     
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchLeaderboard, currentPage]);
 
   const handlePrevPage = () => {

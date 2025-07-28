@@ -90,6 +90,7 @@ export function GamblingCard() {
   // Slot machine states
   const [isSlotSpinning, setIsSlotSpinning] = useState(false);
   const [slotResult, setSlotResult] = useState<"win" | "lose" | null>(null);
+  const [isClaimingPrize, setIsClaimingPrize] = useState(false);
 
   // User stats state
   const [userStats, setUserStats] = useState({
@@ -282,6 +283,7 @@ export function GamblingCard() {
       if (userWins && address) {
         try {
           // Automatically call gamblyWin as contract owner
+          setIsClaimingPrize(true);
           const claimTxHash = await callGamblyWinAsOwner(address);
           setLastResult({
             won: true,
@@ -350,6 +352,8 @@ export function GamblingCard() {
             title: "🎉 Congratulations! You Won!",
             body: `You won the gamble! Prize claim failed. Please try again.`,
           });
+        } finally {
+          setIsClaimingPrize(false);
         }
       } else {
         setLastResult({ won: false, txHash: transactionHash }); // Add txHash for losing transactions too
@@ -691,6 +695,7 @@ export function GamblingCard() {
                 pendingOverride={{
                   text: "GAMBLING...",
                 }}
+                disabled={isSlotSpinning || isClaimingPrize}
               />
             </div>
             <TransactionStatus>
@@ -707,6 +712,11 @@ export function GamblingCard() {
           <p className="text-yellow-600 text-sm text-center mt-2">
             Connect your wallet to start gambling
           </p>
+        )}
+        {isClaimingPrize && (
+          <div className="text-center mt-2 text-sm text-blue-600 animate-pulse">
+            🎉 You won! Claiming your jackpot, please wait...
+          </div>
         )}
       </div>
 

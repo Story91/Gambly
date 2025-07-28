@@ -48,32 +48,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Creating wallet client...");
-    const walletClient = createOwnerWalletClient();
-    console.log("Wallet client created with account:", walletClient.account.address);
+    console.log("Attempting to claim win for recipient...");
+    const claimResult = await attemptClaim(recipient);
 
-    console.log("Simulating contract call...");
-    const { request: contractRequest } = await publicClient.simulateContract({
-      account: walletClient.account,
-      address: CONTRACTS.GAMBLING_ADDRESS,
-      abi: GAMBLING_CONTRACT_ABI,
-      functionName: "gamblyWin",
-      args: [recipient],
-    });
-
-    console.log("Contract simulation successful, sending transaction...");
-    const hash = await walletClient.writeContract(contractRequest);
-    console.log("Transaction sent, hash:", hash);
-    
-    // Wait for transaction to be mined
-    console.log("Waiting for transaction receipt...");
-    const receipt = await publicClient.waitForTransactionReceipt({ hash });
-    console.log("Transaction mined, receipt:", receipt.transactionHash);
-    
-    return NextResponse.json({
-      success: true,
-      transactionHash: receipt.transactionHash,
-    });
+    if (claimResult.success) {
+      return NextResponse.json({
+        success: true,
+        transactionHash: claimResult.transactionHash,
+      });
+    } else {
+      console.error("Failed to claim win:", claimResult.error);
+      return NextResponse.json(
+        { error: claimResult.error },
+        { status: 500 },
+      );
+    }
   } catch (error) {
     console.error("Error calling gamblyWin as owner:", error);
     return NextResponse.json(
@@ -81,4 +70,41 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+async function attemptClaim(recipient: `0x${string}`, retries = 3, delay = 2000): Promise<{ success: boolean; transactionHash?: string; error?: string }> {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const walletClient = createOwnerWalletClient();
+      const publicClient = createPublicClient({ chain: base, transport: http() });
+
+      console.log(`Attempt ${i + 1} to claim win for ${recipient}`);
+
+      const { request: contractRequest } = await publicClient.simulateContract({
+        account: walletClient.account,
+        address: CONTRACTS.GAMBLING_ADDRESS,
+        abi: GAMBLING_CONTRACT_ABI,
+        functionName: 'gamblyWin',
+        args: [recipient],
+      });
+
+      const hash = await walletClient.writeContract(contractRequest);
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      if (receipt.status === 'success') {
+        console.log(`Attempt ${i + 1} successful. TX hash: ${hash}`);
+        return { success: true, transactionHash: receipt.transactionHash };
+      } else {
+        console.warn(`Attempt ${i + 1} failed. TX reverted. Hash: ${hash}`);
+        // Fall through to retry
+      }
+    } catch (error) {
+      console.error(`Attempt ${i + 1} threw an error:`, error);
+      if (i === retries - 1) { // Last attempt
+        return { success: false, error: error instanceof Error ? error.message : "Unknown error during claim" };
+      }
+      await new Promise(res => setTimeout(res, delay * (i + 1))); // Exponential backoff
+    }
+  }
+  return { success: false, error: "All claim attempts failed." };
 }

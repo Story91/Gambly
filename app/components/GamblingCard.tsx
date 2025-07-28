@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect } from "react";
-import { useAccount, useReadContract, useWalletClient, usePublicClient } from "wagmi";
+import { useAccount, useReadContract, useWalletClient, usePublicClient, useSignTypedData } from "wagmi";
 import {
   Transaction,
   TransactionButton,
@@ -35,16 +35,19 @@ export function GamblingCard() {
   const { address } = useAccount();
   const publicClient = usePublicClient();
   const { data: walletClient } = useWalletClient();
+  const { signTypedData, data: signature, status: sigStatus, error: sigError } = useSignTypedData();
 
   // Add swap modal states
   const [showSwapModal, setShowSwapModal] = useState(false);
-  const [swapView, setSwapView] = useState<'buy' | 'alternative'>('buy');
+  const [swapView, setSwapView] = useState<'buy' | 'sell' | 'alternative'>('buy');
   
   // Flaunch SDK states
   const [buyAmount, setBuyAmount] = useState('0.01');
+  const [sellAmount, setSellAmount] = useState('100');
   const [isLoading, setIsLoading] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const [slippagePercent, setSlippagePercent] = useState(5);
+  const [coinMetadata, setCoinMetadata] = useState<{symbol: string, name: string, image?: string} | null>(null);
 
   // Initialize Flaunch SDK
   const flaunchSDK = useMemo(() => {
@@ -55,6 +58,24 @@ export function GamblingCard() {
       walletClient,
     }) as ReadWriteFlaunchSDK;
   }, [publicClient, walletClient]);
+
+  // Load coin metadata
+  const loadCoinMetadata = useCallback(async () => {
+    if (!flaunchSDK) return;
+    
+    try {
+      const metadata = await flaunchSDK.getCoinMetadata(CONTRACTS.ERC20_ADDRESS);
+      setCoinMetadata(metadata);
+      console.log("Loaded coin metadata:", metadata);
+    } catch (error) {
+      console.error("Failed to load coin metadata:", error);
+    }
+  }, [flaunchSDK]);
+
+  // Load metadata when SDK is ready
+  useEffect(() => {
+    loadCoinMetadata();
+  }, [loadCoinMetadata]);
 
 
   const [winDifficulty, setWinDifficulty] = useState<bigint | null>(null);
@@ -448,9 +469,107 @@ export function GamblingCard() {
     } finally {
       setIsLoading(false);
     }
-  }, [flaunchSDK, address, buyAmount, slippagePercent, sendNotification, refetchBalance, setShowSwapModal, setSwapView]);
+    }, [flaunchSDK, address, buyAmount, slippagePercent, sendNotification, refetchBalance, setShowSwapModal, setSwapView]);
 
+  // Sell SLOT tokens with Permit2 support
+  const sellSLOTTokens = useCallback(async () => {
+    if (!flaunchSDK || !address) {
+      await sendNotification({
+        title: "Error",
+        body: "Wallet not connected or SDK not ready",
+      });
+      return;
+    }
 
+    setIsLoading(true);
+    setTransactionHash(null);
+
+    try {
+      const amountIn = parseEther(sellAmount);
+
+      // Check allowance and permit if needed
+      const { allowance } = await flaunchSDK.getPermit2AllowanceAndNonce(CONTRACTS.ERC20_ADDRESS);
+
+      if (allowance < amountIn) {
+        // Need permit
+        const { typedData, permitSingle } = await flaunchSDK.getPermit2TypedData(CONTRACTS.ERC20_ADDRESS);
+        
+        await sendNotification({
+          title: "🔐 Signature Required",
+          body: "Please sign the permit to allow token sale",
+        });
+
+        signTypedData(typedData);
+
+        // Wait for signature
+        await new Promise((resolve) => {
+          const checkSignature = () => {
+            if (signature) {
+              resolve(signature);
+            } else {
+              setTimeout(checkSignature, 100);
+            }
+          };
+          checkSignature();
+        });
+
+        if (!signature) {
+          throw new Error("Signature required for token sale");
+        }
+
+        // Sell with permit
+        const hash = await flaunchSDK.sellCoin({
+          coinAddress: CONTRACTS.ERC20_ADDRESS,
+          amountIn,
+          slippagePercent,
+          permitSingle,
+          signature,
+        });
+
+        setTransactionHash(hash);
+      } else {
+        // Already approved, sell directly
+        const hash = await flaunchSDK.sellCoin({
+          coinAddress: CONTRACTS.ERC20_ADDRESS,
+          amountIn,
+          slippagePercent,
+        });
+
+        setTransactionHash(hash);
+      }
+
+      // Wait for confirmation  
+      const receipt = await flaunchSDK.drift.waitForTransaction({ hash: transactionHash as `0x${string}` });
+      
+      if (receipt && receipt.status === "success") {
+        await sendNotification({
+          title: "🎉 Sale Successful!",
+          body: `Successfully sold SLOT tokens! TX: ${transactionHash!.slice(0, 10)}...`,
+        });
+        
+        // Refresh balance
+        refetchBalance();
+        
+        // Close modal after successful sale
+        setTimeout(() => {
+          setShowSwapModal(false);
+          setSwapView('buy');
+        }, 2000);
+      } else {
+        throw new Error("Transaction failed");
+      }
+    } catch (error) {
+      console.error("Sell failed:", error);
+      await sendNotification({
+        title: "❌ Sale Failed",
+        body: error instanceof Error ? error.message : "Transaction failed",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [flaunchSDK, address, sellAmount, slippagePercent, sendNotification, refetchBalance, setShowSwapModal, setSwapView, signTypedData, signature, transactionHash]);
+
+  
 
   return (
     <div className="space-y-4">
@@ -649,8 +768,12 @@ export function GamblingCard() {
             </button>
 
                          <div className="mb-4">
-               <h3 className="text-xl font-bold text-gray-900 mb-2">Get More SLOT Tokens</h3>
-               <p className="text-sm text-gray-600">Choose your preferred method to buy SLOT tokens!</p>
+               <h3 className="text-xl font-bold text-gray-900 mb-2">
+                 {coinMetadata ? `Trade ${coinMetadata.symbol}` : 'Trade SLOT Tokens'}
+               </h3>
+               <p className="text-sm text-gray-600">
+                 {coinMetadata ? coinMetadata.name : 'Choose your preferred trading method!'}
+               </p>
              </div>
 
              {/* Tab Navigation */}
@@ -663,7 +786,17 @@ export function GamblingCard() {
                      : 'text-gray-600 hover:text-gray-900'
                  }`}
                >
-                 💰 Buy & Swap
+                 💰 Buy
+               </button>
+               <button
+                 onClick={() => setSwapView('sell')}
+                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                   swapView === 'sell'
+                     ? 'bg-white text-blue-600 shadow-sm'
+                     : 'text-gray-600 hover:text-gray-900'
+                 }`}
+               >
+                 💸 Sell
                </button>
                <button
                  onClick={() => setSwapView('alternative')}
@@ -673,7 +806,7 @@ export function GamblingCard() {
                      : 'text-gray-600 hover:text-gray-900'
                  }`}
                >
-                 🔄 Alternative
+                 🔄 DEX
                </button>
              </div>
 
@@ -773,9 +906,118 @@ export function GamblingCard() {
                         <p className="text-xs text-blue-600">LP: 0x498581ff718922c3f8e6a244956af099b2652b2b</p>
                       </div>
                     </div>
-                  </div>
-                </div>
-             ) : (
+                                     </div>
+                 </div>
+               ) : swapView === 'sell' ? (
+                 <div className="space-y-4">
+                   {/* Transaction Status */}
+                   {transactionHash && (
+                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                       <div className="flex items-center space-x-2">
+                         <span className="text-blue-600">⏳</span>
+                         <div>
+                           <p className="text-sm font-medium text-blue-800">Transaction Pending</p>
+                           <a 
+                             href={`https://basescan.org/tx/${transactionHash}`}
+                             target="_blank"
+                             rel="noopener noreferrer"
+                             className="text-xs text-blue-600 hover:underline"
+                           >
+                             View on BaseScan: {transactionHash.slice(0, 10)}...
+                           </a>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Sell Amount Input */}
+                   <div className="bg-gray-50 rounded-lg p-4">
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       SLOT Amount to Sell
+                     </label>
+                     <input
+                       type="number"
+                       step="1"
+                       min="0"
+                       value={sellAmount}
+                       onChange={(e) => setSellAmount(e.target.value)}
+                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                       placeholder="100"
+                       disabled={isLoading}
+                     />
+                     <p className="text-xs text-gray-500 mt-1">Available: {formattedBalance} SLOT</p>
+                   </div>
+
+                   {/* Slippage Settings */}
+                   <div className="bg-gray-50 rounded-lg p-4">
+                     <label className="block text-sm font-medium text-gray-700 mb-2">
+                       Slippage Tolerance: {slippagePercent}%
+                     </label>
+                     <div className="flex space-x-2">
+                       {[1, 3, 5, 10].map((percent) => (
+                         <button
+                           key={percent}
+                           onClick={() => setSlippagePercent(percent)}
+                           className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                             slippagePercent === percent
+                               ? 'bg-red-600 text-white'
+                               : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                           }`}
+                           disabled={isLoading}
+                         >
+                           {percent}%
+                         </button>
+                       ))}
+                     </div>
+                   </div>
+
+                   {/* Permit2 Info */}
+                   {sigStatus === 'pending' && (
+                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                       <div className="flex items-center space-x-2">
+                         <span className="text-yellow-600">🔐</span>
+                         <div>
+                           <p className="text-sm font-medium text-yellow-800">Signature Required</p>
+                           <p className="text-xs text-yellow-600">Please sign the permit to allow token sale</p>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+
+                   {/* Sell Button */}
+                   <button 
+                     onClick={sellSLOTTokens}
+                     disabled={isLoading || !flaunchSDK || !address}
+                     className="w-full bg-red-600 text-white p-4 rounded-lg font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                   >
+                     <div className="flex items-center justify-center space-x-2">
+                       {isLoading ? (
+                         <>
+                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                           <span>Processing...</span>
+                         </>
+                       ) : (
+                         <>
+                           <span>💸</span>
+                           <span>Sell SLOT for ETH</span>
+                         </>
+                       )}
+                     </div>
+                     <p className="text-xs opacity-90 mt-1">Powered by Flaunch SDK with Permit2</p>
+                   </button>
+
+                   {/* Info about LP */}
+                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                     <div className="flex items-center space-x-2">
+                       <span className="text-blue-600">ℹ️</span>
+                       <div>
+                         <p className="text-sm font-medium text-blue-800">Gasless Token Approvals</p>
+                         <p className="text-xs text-blue-600">Using Permit2 for secure, gasless token permissions</p>
+                       </div>
+                     </div>
+                   </div>
+                 </div>
+               ) : (
                <div className="space-y-4">
                  {/* Alternative Swaps Header */}
                  <div className="text-center mb-4">
@@ -845,6 +1087,7 @@ export function GamblingCard() {
                  refetchBalance();
                  setShowSwapModal(false);
                  setSwapView('buy'); // Reset to buy view
+                 setTransactionHash(null); // Clear transaction hash
                }}
                className="w-full bg-gray-600 text-white p-3 rounded-lg font-medium hover:bg-gray-700 transition-colors mt-4"
              >

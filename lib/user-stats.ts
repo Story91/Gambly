@@ -189,13 +189,18 @@ async function updateLeaderboards(
   if (!redis) return;
 
   try {
-    // Update total won leaderboard
-    await redis.zadd("leaderboard:total_won", { score: totalWon, member: address });
+    // Create deterministic hash from address for stable sorting
+    const addressHash = parseInt(address.slice(2, 10), 16) / 1e12; // Very small decimal
     
-    // Update win ratio leaderboard (only if user has spins)
+    // Primary leaderboard: sort by number of games played (spins)
+    const spinsScore = spins + addressHash;
+    await redis.zadd("leaderboard:total_won", { score: spinsScore, member: address });
+    
+    // Secondary leaderboard: sort by win ratio (only if user has spins)
     if (spins > 0) {
       const winRatio = (wins / spins) * 100;
-      await redis.zadd("leaderboard:win_ratio", { score: winRatio, member: address });
+      const stableWinRatioScore = winRatio + addressHash;
+      await redis.zadd("leaderboard:win_ratio", { score: stableWinRatioScore, member: address });
     }
   } catch (error) {
     console.error("Error updating leaderboards:", error);
@@ -244,66 +249,130 @@ export interface LeaderboardEntry {
   winRatio: string;
 }
 
-export async function getLeaderboard(type: 'total_won' | 'win_ratio' = 'total_won', limit: number = 10): Promise<LeaderboardEntry[]> {
-  if (!redis) return [];
+export interface LeaderboardResult {
+  entries: LeaderboardEntry[];
+  pagination: {
+    total: number;
+    hasMore: boolean;
+    currentOffset: number;
+    limit: number;
+  };
+}
+
+export async function getLeaderboard(
+  type: 'total_won' | 'win_ratio' = 'total_won', 
+  limit: number = 10, 
+  offset: number = 0,
+  resolveNames: boolean = false
+): Promise<LeaderboardResult> {
+  if (!redis) return { 
+    entries: [], 
+    pagination: { total: 0, hasMore: false, currentOffset: offset, limit } 
+  };
 
   try {
     const leaderboardKey = `leaderboard:${type}`;
     
-    // Get top players from sorted set (descending order using zrange with REV)
-    const topPlayers = await redis.zrange(leaderboardKey, 0, limit - 1, { 
+    // Get total count first for pagination
+    const totalCount = await redis.zcard(leaderboardKey);
+    
+    // Validate offset against total count
+    if (offset >= totalCount && totalCount > 0) {
+      return { 
+        entries: [], 
+        pagination: { 
+          total: totalCount, 
+          hasMore: false,
+          currentOffset: offset, 
+          limit 
+        } 
+      };
+    }
+    
+    // Get players from sorted set with pagination
+    const startIndex = offset;
+    const stopIndex = offset + limit - 1;
+    
+    const topPlayers = await redis.zrange(leaderboardKey, startIndex, stopIndex, { 
       rev: true, 
       withScores: true 
     });
     
     if (!topPlayers || topPlayers.length === 0) {
-      return [];
+      return { 
+        entries: [], 
+        pagination: { 
+          total: totalCount, 
+          hasMore: false,
+          currentOffset: offset, 
+          limit 
+        } 
+      };
     }
 
-    const leaderboard: LeaderboardEntry[] = [];
+    const entries: LeaderboardEntry[] = [];
     
     // Process players in pairs (member, score)
     for (let i = 0; i < topPlayers.length; i += 2) {
       const address = topPlayers[i] as string;
-      const score = topPlayers[i + 1] as number;
+      const stableScore = topPlayers[i + 1] as number;
       
       if (!address) continue;
       
-      // Get detailed stats for this user to get additional info
+      // Get detailed stats for this user
       const userStats = await getUserStats(address);
       
-             // Resolve display name (ENS or basename)
-       const displayName = await resolveDisplayName(address);
-       
-       // Use score from leaderboard for the primary sorted value
-       if (type === 'total_won') {
-         leaderboard.push({
-           rank: Math.floor(i / 2) + 1,
-           address,
-           displayName,
-           totalWon: score.toString(), // Use score as totalWon
-           spins: userStats.spins,
-           wins: userStats.wins,
-           winRatio: userStats.spins > 0 
-             ? ((userStats.wins / userStats.spins) * 100).toFixed(1)
-             : "0.0",
-         });
-       } else { // win_ratio leaderboard
-         leaderboard.push({
-           rank: Math.floor(i / 2) + 1,
-           address,
-           displayName,
-           totalWon: userStats.totalWon, // Get from stats
-           spins: userStats.spins,
-           wins: userStats.wins,
-           winRatio: score.toFixed(1), // Use score as winRatio
-         });
-       }
+      // Create entry with proper ranking
+      const entry: LeaderboardEntry = {
+        rank: offset + Math.floor(i / 2) + 1,
+        address,
+        totalWon: userStats.totalWon,
+        spins: userStats.spins,
+        wins: userStats.wins,
+        winRatio: userStats.spins > 0 ? ((userStats.wins / userStats.spins) * 100).toFixed(1) : "0.0",
+      };
+      
+      entries.push(entry);
     }
     
-    return leaderboard;
+    // Calculate if there are more pages
+    const hasMore = offset + limit < totalCount;
+    
+    // If resolveNames is true, resolve names in parallel
+    if (resolveNames && entries.length > 0) {
+      const namePromises = entries.map(async (entry) => {
+        const displayName = await resolveDisplayName(entry.address);
+        return { ...entry, displayName };
+      });
+      
+      const entriesWithNames = await Promise.all(namePromises);
+      return {
+        entries: entriesWithNames,
+        pagination: {
+          total: totalCount,
+          hasMore,
+          currentOffset: offset,
+          limit
+        }
+      };
+    }
+    
+    return {
+      entries,
+      pagination: {
+        total: totalCount,
+        hasMore,
+        currentOffset: offset,
+        limit
+      }
+    };
   } catch (error) {
     console.error("Error getting leaderboard:", error);
-    return [];
+    return { 
+      entries: [], 
+      pagination: { total: 0, hasMore: false, currentOffset: offset, limit } 
+    };
   }
 } 
+
+ 

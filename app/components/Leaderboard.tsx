@@ -34,20 +34,12 @@ export function Leaderboard() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingNames, setIsLoadingNames] = useState(false);
-  const [isChangingPage, setIsChangingPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [useInfiniteScroll, setUseInfiniteScroll] = useState(false);
 
-  const fetchLeaderboard = useCallback(async (offset: number = 0, withNames: boolean = false, isPageChange: boolean = false) => {
+  const fetchLeaderboard = useCallback(async (offset: number = 0, withNames: boolean = false) => {
     try {
       if (!withNames) {
-        if (isPageChange) {
-          setIsChangingPage(true);
-          setLeaderboard([]); // Clear old data immediately
-        } else {
-          setIsLoading(true);
-        }
+        setIsLoading(true);
       } else {
         setIsLoadingNames(true);
       }
@@ -58,11 +50,15 @@ export function Leaderboard() {
       if (response.ok) {
         const data: LeaderboardResult = await response.json();
         
-        if (useInfiniteScroll && offset > 0 && !withNames) {
-          // For infinite scroll, append new data
-          setLeaderboard(current => [...current, ...data.entries]);
+        if (offset > 0 && !withNames) {
+          // For load more, append new data (avoiding duplicates)
+          setLeaderboard(current => {
+            const existingAddresses = new Set(current.map(entry => entry.address));
+            const newEntries = data.entries.filter(entry => !existingAddresses.has(entry.address));
+            return [...current, ...newEntries];
+          });
         } else {
-          // For pagination or initial load, replace data
+          // For initial load, replace data
           setLeaderboard(data.entries);
         }
         
@@ -70,9 +66,9 @@ export function Leaderboard() {
         setError(null);
         
         // If this was the initial load without names, start loading names in background
-        if (!withNames && data.entries.length > 0 && !isPageChange) {
+        if (!withNames && data.entries.length > 0 && offset === 0) {
           setTimeout(() => {
-            fetchLeaderboardNames(offset);
+            fetchLeaderboardNames(0);
           }, 100);
         }
       } else {
@@ -84,12 +80,11 @@ export function Leaderboard() {
     } finally {
       if (!withNames) {
         setIsLoading(false);
-        setIsChangingPage(false);
       } else {
         setIsLoadingNames(false);
       }
     }
-  }, [useInfiniteScroll]);
+  }, []);
 
   const fetchLeaderboardNames = useCallback(async (offset: number = 0) => {
     try {
@@ -117,39 +112,21 @@ export function Leaderboard() {
     fetchLeaderboard(0);
     
     // Refresh leaderboard every 30 seconds
-    const interval = setInterval(() => fetchLeaderboard(currentPage * 10), 30000);
+    const interval = setInterval(() => {
+      // Reset to beginning for refresh
+      fetchLeaderboard(0);
+    }, 30000);
     
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fetchLeaderboard, currentPage]);
+  }, []);
 
-  const handlePrevPage = () => {
-    if (currentPage > 0) {
-      const newPage = currentPage - 1;
-      setCurrentPage(newPage);
-      fetchLeaderboard(newPage * 10, false, true); // Pass isPageChange = true
-    }
-  };
-
-  const handleNextPage = () => {
-    if (pagination.hasMore) {
-      const newPage = currentPage + 1;
-      setCurrentPage(newPage);
-      fetchLeaderboard(newPage * 10, false, true); // Pass isPageChange = true
-    }
-  };
-
-  const loadMoreInfinite = () => {
+  const loadMore = () => {
     if (pagination.hasMore && !isLoading) {
       const newOffset = leaderboard.length;
-      fetchLeaderboard(newOffset, false, false);
+      fetchLeaderboard(newOffset, false);
     }
   };
-
-  // Calculate max page to prevent going beyond available data
-  const maxPage = Math.ceil(pagination.total / pagination.limit) - 1;
-  const canGoNext = currentPage < maxPage && pagination.hasMore;
-  const canGoPrev = currentPage > 0;
 
   const formatDisplayName = (player: LeaderboardEntry) => {
     if (player.displayName) {
@@ -170,16 +147,8 @@ export function Leaderboard() {
     <div>
       <div className="flex justify-between items-center mb-3">
         <h3 className="font-bold text-lg">LEADERBOARD</h3>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setUseInfiniteScroll(!useInfiniteScroll)}
-            className="text-xs px-2 py-1 bg-gray-100 rounded hover:bg-gray-200"
-          >
-            {useInfiniteScroll ? 'Pagination' : 'Scroll'}
-          </button>
-          <div className="text-xs text-gray-500">
-            Sorted by games played
-          </div>
+        <div className="text-xs text-gray-500">
+          Sorted by games played
         </div>
         {isLoadingNames && (
           <div className="text-xs text-gray-500 flex items-center gap-1">
@@ -189,7 +158,7 @@ export function Leaderboard() {
         )}
       </div>
       
-      <div className="overflow-y-auto max-h-[300px]">
+      <div className="overflow-y-auto max-h-[400px]">
         <div className="grid grid-cols-[auto_1fr_auto_auto] gap-2 text-xs font-medium border-b pb-2 text-black sticky top-0 bg-white z-10 px-1">
           <span className="text-center">#</span>
           <span>Player</span>
@@ -197,13 +166,11 @@ export function Leaderboard() {
           <span className="text-center">W/L</span>
         </div>
         <div className="space-y-1 pt-2">
-          {isLoading || isChangingPage ? (
-            // Loading skeleton
+          {isLoading && leaderboard.length === 0 ? (
+            // Loading skeleton for initial load
             <div className="text-center py-4">
               <div className="animate-spin w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-2"></div>
-              <div className="text-xs text-gray-500">
-                {isChangingPage ? 'Loading page...' : 'Loading leaderboard...'}
-              </div>
+              <div className="text-xs text-gray-500">Loading leaderboard...</div>
             </div>
           ) : error ? (
             <div className="text-center py-4 text-gray-500 text-xs">
@@ -217,7 +184,7 @@ export function Leaderboard() {
             <>
               {leaderboard.map((player) => (
                 <div
-                  key={player.address}
+                  key={`${player.address}-${player.rank}`} // Fixed: Use unique combination
                   className="grid grid-cols-[auto_1fr_auto_auto] gap-2 items-center text-xs py-2 rounded text-black hover:bg-gray-50 px-1 min-h-[2rem]"
                 >
                   <div className="flex justify-center">
@@ -260,55 +227,40 @@ export function Leaderboard() {
                 </div>
               ))}
               
-              {/* Infinite scroll load more button */}
-              {useInfiniteScroll && pagination.hasMore && (
-                <div className="text-center py-2">
+              {/* Load more button */}
+              {pagination.hasMore && (
+                <div className="text-center py-3">
                   <button
-                    onClick={loadMoreInfinite}
+                    onClick={loadMore}
                     disabled={isLoading}
-                    className="px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
+                    className={`px-4 py-2 text-xs rounded font-medium ${
+                      isLoading 
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                        : 'bg-blue-500 text-white hover:bg-blue-600'
+                    }`}
                   >
-                    {isLoading ? 'Loading...' : 'Load More'}
+                    {isLoading ? (
+                      <>
+                        <div className="inline-block animate-spin w-3 h-3 border border-white border-t-transparent rounded-full mr-2"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      'Load More'
+                    )}
                   </button>
+                </div>
+              )}
+              
+              {/* End of list indicator */}
+              {!pagination.hasMore && leaderboard.length > 10 && (
+                <div className="text-center py-2 text-xs text-gray-500">
+                  All {pagination.total} players loaded
                 </div>
               )}
             </>
           )}
         </div>
       </div>
-      
-      {/* Pagination Controls - only show if not using infinite scroll */}
-      {!useInfiniteScroll && !isLoading && !isChangingPage && leaderboard.length > 0 && pagination.total > pagination.limit && (
-        <div className="flex justify-between items-center mt-3 pt-2 border-t">
-          <button
-            onClick={handlePrevPage}
-            disabled={!canGoPrev}
-            className={`px-3 py-1 text-xs font-medium rounded ${
-              !canGoPrev 
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-            }`}
-          >
-            ← PREV
-          </button>
-          
-          <div className="text-xs text-gray-600">
-            Page {currentPage + 1} of {Math.ceil(pagination.total / pagination.limit)} • {pagination.total} players
-          </div>
-          
-          <button
-            onClick={handleNextPage}
-            disabled={!canGoNext}
-            className={`px-3 py-1 text-xs font-medium rounded ${
-              !canGoNext 
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : 'bg-blue-500 text-white hover:bg-blue-600'
-            }`}
-          >
-            NEXT →
-          </button>
-        </div>
-      )}
     </div>
   );
 }

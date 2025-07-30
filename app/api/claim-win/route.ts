@@ -10,14 +10,14 @@ const createOwnerWalletClient = () => {
   const privateKey = process.env.PRIVATE_KEY;
   console.log("PRIVATE_KEY exists:", !!privateKey);
   console.log("PRIVATE_KEY length:", privateKey?.length);
-  
+
   if (!privateKey) {
     throw new Error("PRIVATE_KEY not found in environment variables");
   }
-  
+
   const account = privateKeyToAccount(privateKey as `0x${string}`);
   console.log("Account created:", account.address);
-  
+
   return createWalletClient({
     account,
     chain: base,
@@ -28,12 +28,12 @@ const createOwnerWalletClient = () => {
 export async function POST(request: NextRequest) {
   try {
     console.log("API route called");
-    
+
     const body = await request.json();
     console.log("Request body:", body);
-    
+
     const { recipient } = body;
-    
+
     if (!recipient) {
       console.error("No recipient provided");
       return NextResponse.json(
@@ -52,25 +52,34 @@ export async function POST(request: NextRequest) {
       });
     } else {
       console.error("Failed to claim win:", claimResult.error);
-      return NextResponse.json(
-        { error: claimResult.error },
-        { status: 500 },
-      );
+      return NextResponse.json({ error: claimResult.error }, { status: 500 });
     }
   } catch (error) {
     console.error("Error calling gamblyWin as owner:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Failed to call gamblyWin as contract owner" },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to call gamblyWin as contract owner",
+      },
       { status: 500 },
     );
   }
 }
 
-async function attemptClaim(recipient: `0x${string}`, retries = 3, delay = 2000): Promise<{ success: boolean; transactionHash?: string; error?: string }> {
+async function attemptClaim(
+  recipient: `0x${string}`,
+  retries = 3,
+  delay = 2000,
+): Promise<{ success: boolean; transactionHash?: string; error?: string }> {
   for (let i = 0; i < retries; i++) {
     try {
       const walletClient = createOwnerWalletClient();
-      const publicClient = createPublicClient({ chain: base, transport: http() });
+      const publicClient = createPublicClient({
+        chain: base,
+        transport: http(),
+      });
 
       console.log(`Attempt ${i + 1} to claim win for ${recipient}`);
 
@@ -78,14 +87,15 @@ async function attemptClaim(recipient: `0x${string}`, retries = 3, delay = 2000)
         account: walletClient.account,
         address: CONTRACTS.GAMBLING_ADDRESS,
         abi: GAMBLING_CONTRACT_ABI,
-        functionName: 'gamblyWin',
+        functionName: "gamblyWin",
         args: [recipient],
+        gas: BigInt(1_000_000),
       });
 
       const hash = await walletClient.writeContract(contractRequest);
       const receipt = await publicClient.waitForTransactionReceipt({ hash });
 
-      if (receipt.status === 'success') {
+      if (receipt.status === "success") {
         console.log(`Attempt ${i + 1} successful. TX hash: ${hash}`);
         return { success: true, transactionHash: receipt.transactionHash };
       } else {
@@ -94,10 +104,17 @@ async function attemptClaim(recipient: `0x${string}`, retries = 3, delay = 2000)
       }
     } catch (error) {
       console.error(`Attempt ${i + 1} threw an error:`, error);
-      if (i === retries - 1) { // Last attempt
-        return { success: false, error: error instanceof Error ? error.message : "Unknown error during claim" };
+      if (i === retries - 1) {
+        // Last attempt
+        return {
+          success: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unknown error during claim",
+        };
       }
-      await new Promise(res => setTimeout(res, delay * (i + 1))); // Exponential backoff
+      await new Promise((res) => setTimeout(res, delay * (i + 1))); // Exponential backoff
     }
   }
   return { success: false, error: "All claim attempts failed." };

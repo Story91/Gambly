@@ -250,7 +250,7 @@ export function GamblingCard() {
   const transferCalls = useMemo(() => {
     if (!address) return [];
 
-    const amount = BigInt(10000 * 10 ** 18);
+    const amount = BigInt(100000 * 10 ** 18);
 
     return [
       {

@@ -154,7 +154,7 @@ export default function App() {
                 </p>
                 <div className="text-sm text-gray-500 font-mono space-y-3 text-left">
                   <p>
-                    🔥 <strong>GLOBAL POOL:</strong> Every spin adds 10k $SLOT
+                    🔥 <strong>GLOBAL POOL:</strong> Every spin adds 100k $SLOT
                     to the jackpot! One winner takes ALL!
                   </p>
 

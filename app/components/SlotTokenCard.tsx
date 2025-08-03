@@ -161,8 +161,7 @@ export function SlotTokenCard() {
               />
             )}
             <div>
-              <div className="flex items-center space-x-2">
-                <span className="text-2xl">🎰</span>
+              <div className="flex items-center">
                 <h3 className="text-lg font-bold text-green-800">
                   {coinMetadata?.name || "SLOT Token"}
                 </h3>
@@ -473,8 +472,7 @@ export function SlotTokenCard() {
                         />
                       )}
                       <div className="flex-1">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-green-600">🎰</span>
+                        <div className="flex items-center">
                           <p className="text-sm font-medium text-green-800">
                             {coinMetadata.name}
                           </p>

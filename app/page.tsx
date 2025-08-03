@@ -23,6 +23,7 @@ import { GamblingCard } from "./components/GamblingCard";
 import { Button, Icon } from "./components/DemoComponents";
 import { Leaderboard } from "./components/Leaderboard";
 import { Claim } from "./components/Claim";
+import { SlotTokenCard } from "./components/SlotTokenCard";
 
 export default function App() {
   const { setFrameReady, isFrameReady, context } = useMiniKit();
@@ -194,6 +195,7 @@ export default function App() {
         <main className="px-2">
           <Claim />
           <GamblingCard />
+          <SlotTokenCard />
           <Leaderboard />
         </main>
 
